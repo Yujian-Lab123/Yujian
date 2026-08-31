@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink-blue: #0f4ce8;
+  --paper: #f6f2ea;
+}
+
+html, body { height: 100%; }
+
+body {
+  @apply font-body text-sumi-700 antialiased;
+  background: var(--paper);
+}
+
+.font-display { letter-spacing: 0.02em; }
+
+/* 纸张纹理 */
+.paper-texture {
+  background-image:
+    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(255, 255, 255, 0.7), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 90% 100%, rgba(214, 200, 170, 0.25), transparent 60%);
+}
+.ink-texture-blue {
+  background-image:
+    radial-gradient(ellipse 70% 55% at 15% 10%, rgba(15, 76, 232, 0.06), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 90% 90%, rgba(13, 27, 62, 0.08), transparent 60%);
+}
+
+/* 竖排文字 */
+.vertical-rl {
+  writing-mode: vertical-rl;
+  letter-spacing: 0.35em;
+}
+
+@layer components {
+  .card-warm { @apply bg-paper-50 rounded-2xl border border-paper-300/70 shadow-card-warm; }
+  .card-blue { @apply bg-white/80 rounded-2xl border border-ink-100 shadow-card backdrop-blur; }
+
+  .btn-primary-blue { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-ink-600 text-white font-medium px-8 py-3.5 shadow-lg shadow-ink-600/25 transition hover:bg-ink-700 active:scale-[0.98]; }
+  .btn-primary-dark { @apply inline-flex items-center justify-center gap-2 rounded-full bg-sumi-800 text-paper-100 font-medium px-8 py-3.5 shadow-lg shadow-sumi-800/25 transition hover:bg-black active:scale-[0.98]; }
+  .btn-outline-blue { @apply inline-flex items-center justify-center gap-2 rounded-xl border border-ink-300 text-ink-700 font-medium px-6 py-3 transition hover:bg-ink-50 active:scale-[0.98]; }
+  .btn-ghost { @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm text-sumi-500 transition hover:bg-paper-200 hover:text-sumi-700; }
+
+  .chip { @apply inline-flex items-center rounded-full border px-3 py-1 text-xs; }
+  .chip-blue { @apply inline-flex items-center rounded-full border px-3 py-1 text-xs border-ink-200 bg-ink-50/60 text-ink-700; }
+  .chip-warm { @apply inline-flex items-center rounded-full border px-3 py-1 text-xs border-paper-400/70 bg-paper-100 text-gold-600; }
+}
+
+/* 动画 */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.7s ease both; }
+.fade-up-1 { animation: fadeUp 0.7s 0.15s ease both; }
+.fade-up-2 { animation: fadeUp 0.7s 0.3s ease both; }
+.fade-up-3 { animation: fadeUp 0.7s 0.45s ease both; }
+
+@keyframes brushIn {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+.brush-in { animation: brushIn 1.1s 0.2s cubic-bezier(0.6, 0, 0.2, 1) both; }
+
+@keyframes pulseSoft { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+.pulse-soft { animation: pulseSoft 2s ease-in-out infinite; }

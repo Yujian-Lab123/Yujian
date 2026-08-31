@@ -1,0 +1,59 @@
+# 遇见 · 技术架构
+
+## 技术栈
+
+- **框架**：Next.js 15（App Router，TypeScript strict），前后端同仓，便于部署到 Sealos/Cloudflare 获取公网 HTTPS 回调。
+- **样式**：Tailwind CSS 3；双视觉系统——外蓝（知乎蓝墨，Landing/连接成功/已遇见）+ 内暖（米纸暖色，理解/推荐/我的）。
+- **存储**：`node:sqlite`（Node 24 内置，零依赖）。接口抽象保留，赛后换 PostgreSQL + pgvector 只改 `lib/db` 与 `lib/retrieval`。
+- **AI**：OpenAI 兼容协议 adapter（mimo / DashScope / DeepSeek 均可）；未配置 key 时全部回退 Mock，Demo 永不崩。
+
+## 目录
+
+```
+app/                  # 页面 + API Routes
+  page.tsx            # Landing（蓝）
+  onboarding/         # OAuth 后：读取动画 → AI 理解结果（暖）
+  encounter/          # 推荐主页：今天想先给你看一篇东西（暖）
+  encounter/[id]/     # 深入了解作者
+  connect/[id]/       # 连接成功（蓝）
+  connections/        # 已遇见
+  me/                 # 我的：此刻状态 / 遇见开关 / 演示身份
+  api/…               # 见下
+lib/
+  axes.ts             # 16 维概念轴、问题库、核心问题库、stateVec
+  db/                 # sqlite schema + 种子 + 向量计算
+  providers/llm.ts    # LLM adapter（chatJSON + zod 校验 + 日志）
+  ai/profile.ts       # 离线理解：Content Profile（explicit/inferred 区分，非人格测试）
+  ai/bridge.ts        # Deep Match / Content Bridge / Conversation Bridge
+  retrieval/matcher.ts# 在线匹配漏斗 + 此刻遇见
+  session.ts          # cookie 会话
+components/           # Nav / 水墨场景 / 头像 / 封面
+docs/                 # 架构 / 匹配 / 产品文档
+```
+
+## API（与概览三十四节对齐）
+
+| 路由 | 说明 |
+| --- | --- |
+| POST /api/auth/demo | Demo 登录（真实 OAuth 接入后保留作演示切身份） |
+| GET /api/auth/zhihu、/auth/callback | 真实 OAuth（P2，协议实现见 zhihu-hackathon 脚手架） |
+| GET /api/me | 用户 + 理解 + 此刻状态 |
+| POST /api/me/current-state | 此刻状态（进入 current_state 向量，自动衰减待 P9） |
+| POST /api/me/toggle | 遇见开关 |
+| POST /api/profile/analyze | 离线理解管线入口（增量更新待 P4） |
+| GET /api/encounters | 在线匹配漏斗 |
+| GET /api/encounters/:id | 作者详情 + TA 还写过 |
+| POST /api/encounters/:id/feedback | not_interested / content_interesting / learn_more / want_to_meet |
+| POST /api/encounters/:id/want-to-meet | 双向确认 |
+| GET /api/connections、/api/connections/:id | 已遇见 / 连接成功页 |
+
+## 安全边界（官方红线）
+
+- app_key / Access Secret 只放服务器端环境变量（`.env.local` / 部署平台 Secret），不进前端、不进 Git。
+- 真实 OAuth：`openapi.zhihu.com/authorize` → `/access_token`（表单 `grant_type=authorization_code`，字段 `code` 承载 `authorization_code`）；用户 API 同时带 `Authorization: Bearer <Access Secret>` 与 `X-OAuth-Token`。
+- 回调必须公网 HTTPS 且与开放平台登记值完全一致；本地仅预览。
+
+## 成本策略
+
+- LLM 只碰 Top 5 候选（Deep Match / Bridge）；摘要、提取、embedding、rerank 用便宜层；所有 AI 输出按 content_id / pair 缓存（recommendations 表复用 fresh 行），同一内容不重复花 token。
+- `lib/providers/llm.ts` 记录 model / latency / 错误 / prompt version，便于调试。

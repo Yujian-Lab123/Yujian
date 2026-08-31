@@ -13,14 +13,15 @@
 | Mock 种子 | ✅ 本轮完成 | 10 个不同职业用户、27 篇内容、16 维概念轴人工标注向量 |
 | 匹配管线 | ✅ 本轮完成 | Hard Filter → 多维召回 → 启发式粗排 → Mock Rerank → Deep Match（LLM 可选）→ Content/Conversation Bridge → 此刻遇见置顶 |
 | 双向确认 | ✅ 本轮完成 | want-to-meet → pending / mutual；Mock 用户可 auto_reciprocate |
-| Provider 抽象 | ✅ 本轮完成 | LLM（OpenAI 兼容，mimo/DashScope/DeepSeek 可换）；Embedding/Rerank/Zhihu 预留接口 |
+| Provider 抽象 | ✅ 本轮完成 | LLM（OpenAI 兼容，mimo/DashScope/DeepSeek 可换）；Embedding/Rerank 预留接口 |
+| P2 知乎 OAuth | ✅ 本轮完成 | RealZhihuProvider：authorize → access_token → 用户接口（双凭证头）；`/api/auth/zhihu` + `/api/auth/callback` + 脱敏诊断 `/api/auth/zhihu/status`；四个 `ZHIHU_*` 环境变量齐备后 Landing 自动切换真实登录入口。真实联调需公网 HTTPS 回调（官方边界） |
 
 ## 二、缺失能力（按 Phase 推进）
 
 | Phase | 内容 | 依赖 |
 | --- | --- | --- |
-| P2 知乎 OAuth | RealZhihuProvider：authorize → access_token → 五项用户接口；需部署公网 HTTPS 回调 | 用户申请 app_id/app_key/Access Secret + 部署平台 |
-| P3 内容获取实测 | 拉取真实创作内容，产出 `docs/ZHIHU_API_FINDINGS.md` | P2 |
+| P2 知乎 OAuth | ✅ 代码完成（见上表）；真实联调待：申请 app_id/app_key/Access Secret + 部署公网 HTTPS 并配置回调 | 部署平台 |
+| P3 内容获取实测 | 解析 `/api/auth/callback` 存档的 raw_contents（`zhihu_identities` 表），产出 `docs/ZHIHU_API_FINDINGS.md` | P2 联调 |
 | P4 真实 Profile 管线 | 真实 Embedding + 便宜模型摘要/提取（Zod 校验），增量更新 | Embedding API key |
 | P5 真实检索 | pgvector / ANN 替换内存粗排（接口已抽象） | 赛后 |
 | P6 Reranker | Qwen/gte rerank 替换 Mock Rerank | rerank API |

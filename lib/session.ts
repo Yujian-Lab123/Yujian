@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { getDb } from './db';
 
 export const SESSION_COOKIE = 'yj_session';
+export const OAUTH_STATE_COOKIE = 'yj_oauth_state';
 
 export async function getSessionUserId(): Promise<string | null> {
   const store = await cookies();

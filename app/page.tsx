@@ -1,14 +1,31 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { InkScene } from '@/components/Ink';
 import Nav from '@/components/Nav';
 import { useMe } from '@/lib/useMe';
+
+const OAUTH_ERRORS: Record<string, string> = {
+  not_configured: '知乎 OAuth 未配置或配置不完整，请检查服务器环境变量。',
+  code_missing: '知乎回调未返回授权码，请确认授权流程完整。',
+  state_mismatch: '安全校验未通过（state 不匹配），请重新发起登录。',
+  token_exchange_failed: '换取知乎令牌失败，可在 /api/auth/zhihu/status 查看脱敏诊断。',
+  profile_failed: '获取知乎用户信息失败，请重试。',
+  oauth_failed: '知乎登录未完成，请重试。',
+};
 
 export default function Landing() {
   const router = useRouter();
   const me = useMe();
   const [busy, setBusy] = useState(false);
+  const [realLogin, setRealLogin] = useState(false);
+  const [oauthError, setOauthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('oauth') === 'error') setOauthError(OAUTH_ERRORS[params.get('reason') || ''] || OAUTH_ERRORS.oauth_failed);
+    fetch('/api/auth/zhihu/status').then((r) => r.json()).then((d) => setRealLogin(Boolean(d?.configured))).catch(() => {});
+  }, []);
 
   const enter = async () => {
     if (me.loggedIn) return router.push('/encounter');
@@ -21,6 +38,15 @@ export default function Landing() {
     <main className="relative min-h-screen overflow-hidden bg-[#f4f5f7] ink-texture-blue">
       <InkScene tone="blue" />
       <Nav tone="blue" tagline="因文而遇 · 智识相知" />
+
+      {oauthError && (
+        <div className="relative z-20 mx-auto mt-4 max-w-xl px-6">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            知乎登录未完成：{oauthError}
+            <button className="ml-3 underline" onClick={() => setOauthError(null)}>知道了</button>
+          </div>
+        </div>
+      )}
 
       {/* 竖排诗句 */}
       <div className="vertical-rl absolute right-10 top-40 hidden select-none font-display text-sm text-sumi-400 lg:block">
@@ -43,11 +69,25 @@ export default function Landing() {
         </div>
 
         <div className="fade-up-2 mt-10">
-          <button onClick={enter} disabled={busy} className="btn-primary-blue px-14 text-lg">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-white text-sm font-bold text-ink-600">知</span>
-            {me.loggedIn ? '继续遇见' : busy ? '正在进入…' : '使用知乎继续'}
-          </button>
-          <p className="mt-4 text-xs text-sumi-400">🔒 遇见基于知乎内容与关系，保护你的隐私与安全{!me.loggedIn && '（Demo 模式：使用模拟身份体验）'}</p>
+          {realLogin ? (
+            <div className="space-y-3">
+              <a href="/api/auth/zhihu" className="btn-primary-blue inline-flex px-14 text-lg">
+                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-white text-sm font-bold text-ink-600">知</span>
+                使用知乎账号登录
+              </a>
+              <div>
+                <button onClick={enter} disabled={busy} className="btn-ghost text-sm">
+                  {me.loggedIn ? '继续（演示身份）' : busy ? '正在进入…' : '先以演示身份体验'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={enter} disabled={busy} className="btn-primary-blue px-14 text-lg">
+              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-white text-sm font-bold text-ink-600">知</span>
+              {me.loggedIn ? '继续遇见' : busy ? '正在进入…' : '使用知乎继续'}
+            </button>
+          )}
+          <p className="mt-4 text-xs text-sumi-400">🔒 遇见基于知乎内容与关系，保护你的隐私与安全{!realLogin && !me.loggedIn && '（Demo 模式：使用模拟身份体验）'}</p>
         </div>
       </section>
 

@@ -79,6 +79,13 @@ function initSchema(d: DatabaseSync) {
       id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
       created_at TEXT DEFAULT (datetime('now'))
     );
+    CREATE TABLE IF NOT EXISTS zhihu_identities (
+      zhihu_user_id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      access_token TEXT, expires_at INTEGER,
+      profile TEXT, raw_contents TEXT,
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 }
 

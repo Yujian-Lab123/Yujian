@@ -25,7 +25,8 @@ Landing → AI 理解 → 推荐（今天想先给你看一篇东西）→ 看�
 
 - `LLM_BASE_URL / LLM_API_KEY / LLM_MODEL`：OpenAI 兼容 chat（mimo 等），用于 Deep Match / Bridge；
 - `EMBED_*`：真实向量模型（P4）；
-- `ZHIHU_*`：真实 OAuth（P2，需公网部署）。
+- `ZHIHU_APP_ID / ZHIHU_OAUTH_APP_KEY / ZHIHU_ACCESS_SECRET / ZHIHU_REDIRECT_URI`：真实知乎 OAuth（P2 代码已接入）。四个变量齐备后，Landing 自动显示「使用知乎账号登录」。真实登录必须公网 HTTPS 部署且回调与开放平台登记值完全一致（本地 localhost 无法完成知乎登录）；联调诊断见 `GET /api/auth/zhihu/status`（脱敏输出）。
+- `APP_ORIGIN`：反向代理后部署时的对外 origin，用于 OAuth 回调后的跳转。
 
 ## 文档
 

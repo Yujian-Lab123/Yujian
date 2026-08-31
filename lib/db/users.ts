@@ -27,3 +27,32 @@ export function listUsers(): UserRow[] {
 export function setEncounterEnabled(id: string, enabled: boolean) {
   getDb().prepare('UPDATE users SET encounter_enabled = ? WHERE id = ?').run(enabled ? 1 : 0, id);
 }
+
+// ============ 真实知乎用户（P2 OAuth 接入） ============
+
+export function findUserIdByZhihuId(zhihuUserId: string): string | null {
+  const row = getDb().prepare('SELECT user_id FROM zhihu_identities WHERE zhihu_user_id = ?').get(zhihuUserId) as any;
+  return row?.user_id ?? null;
+}
+
+/** OAuth 成功后落库：已有身份则更新资料，否则创建 is_mock=0 的真实用户 */
+export function upsertRealUser(p: { zhihuUserId: string; name: string; headline: string | null; avatarUrl: string | null; profileUrl: string | null }): string {
+  const d = getDb();
+  const existing = findUserIdByZhihuId(p.zhihuUserId);
+  if (existing) {
+    d.prepare('UPDATE users SET name = ?, quote = ? WHERE id = ?').run(p.name, p.headline || '', existing);
+    return existing;
+  }
+  const id = `real-${p.zhihuUserId}`.slice(0, 60);
+  d.prepare(`INSERT INTO users (id, zhihu_user_id, name, role, city, quote, tags, intents, encounter_enabled, auto_reciprocate, is_mock)
+    VALUES (?,?,?,?,?,?,?,?,1,0,0)`)
+    .run(id, p.zhihuUserId, p.name, p.headline || '知乎用户', '', p.headline || '', '[]', '[]');
+  d.prepare('INSERT OR REPLACE INTO zhihu_identities (zhihu_user_id, user_id) VALUES (?,?)').run(p.zhihuUserId, id);
+  return id;
+}
+
+export function saveZhihuAuth(userId: string, zhihuUserId: string, accessToken: string, expiresAt: number | null, profile: unknown, rawContents: string | null) {
+  getDb().prepare(`UPDATE zhihu_identities SET access_token = ?, expires_at = ?, profile = ?, raw_contents = ?, updated_at = datetime('now')
+    WHERE zhihu_user_id = ?`)
+    .run(accessToken, expiresAt, JSON.stringify(profile), rawContents, zhihuUserId);
+}

@@ -23,6 +23,7 @@ lib/
   axes.ts             # 16 维概念轴、问题库、核心问题库、stateVec
   db/                 # sqlite schema + 种子 + 向量计算
   providers/llm.ts    # LLM adapter（chatJSON + zod 校验 + 日志）
+  providers/zhihu.ts  # 真实知乎 OAuth（authorize/token/用户接口 + 脱敏诊断）
   ai/profile.ts       # 离线理解：Content Profile（explicit/inferred 区分，非人格测试）
   ai/bridge.ts        # Deep Match / Content Bridge / Conversation Bridge
   retrieval/matcher.ts# 在线匹配漏斗 + 此刻遇见
@@ -35,8 +36,9 @@ docs/                 # 架构 / 匹配 / 产品文档
 
 | 路由 | 说明 |
 | --- | --- |
-| POST /api/auth/demo | Demo 登录（真实 OAuth 接入后保留作演示切身份） |
-| GET /api/auth/zhihu、/auth/callback | 真实 OAuth（P2，协议实现见 zhihu-hackathon 脚手架） |
+| POST /api/auth/demo | Demo 登录（比赛演示切换身份） |
+| GET /api/auth/zhihu、/api/auth/callback | 真实知乎 OAuth（P2 已接入，协议对齐官方 hello-world-oauth）；回调 param 为 `authorization_code`（兼容 `code`），可能不返回 `state` |
+| GET /api/auth/zhihu/status | OAuth 脱敏诊断：凭证长度 / sha256 前缀 / 误填警告 / 最近一次交换阶段，绝不输出完整密钥 |
 | GET /api/me | 用户 + 理解 + 此刻状态 |
 | POST /api/me/current-state | 此刻状态（进入 current_state 向量，自动衰减待 P9） |
 | POST /api/me/toggle | 遇见开关 |

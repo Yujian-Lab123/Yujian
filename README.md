@@ -34,6 +34,7 @@ Landing → AI 理解 → 推荐（今天想先给你看一篇东西）→ 看�
 - `docs/ARCHITECTURE.md`：技术架构与安全边界
 - `docs/MATCHING.md`：匹配算法与 Demo 复现
 - `docs/PRODUCT.md`：产品逻辑
+- `docs/PROFILE_ENGINE.md`：人物画像分析引擎（爬虫验证线：六维画像 + 证据可溯）
 - `总体概览.txt`：产品总说明（上游需求）
 
 ## 演示提示

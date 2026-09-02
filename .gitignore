@@ -10,4 +10,8 @@ data/*.db-wal
 .env.*.local
 *.tsbuildinfo
 next-env.d.ts
-.DS_Store
+audit-output/
+profile-output/
+scripts/fixtures/*.local.json
+media-crawler/
+data/crawler/

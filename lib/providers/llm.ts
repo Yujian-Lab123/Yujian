@@ -11,12 +11,15 @@ export function llmConfigured(): boolean {
 export interface LLMLog { model: string; latencyMs: number; ok: boolean; error?: string; promptVersion: string }
 export const llmLogs: LLMLog[] = [];
 
-export async function chatCompletion(system: string, user: string, opts?: { json?: boolean; model?: string }): Promise<string | null> {
+export interface ChatOpts { json?: boolean; model?: string; maxTokens?: number; temperature?: number; timeoutMs?: number; baseUrl?: string }
+
+export async function chatCompletion(system: string, user: string, opts?: ChatOpts): Promise<string | null> {
   if (!llmConfigured()) return null;
   const started = Date.now();
   const model = opts?.model || process.env.LLM_MODEL || 'default';
+  const base = (opts?.baseUrl || process.env.LLM_BASE_URL || '').replace(/\/$/, '');
   try {
-    const res = await fetch(`${process.env.LLM_BASE_URL}/chat/completions`, {
+    const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -29,10 +32,13 @@ export async function chatCompletion(system: string, user: string, opts?: { json
           { role: 'system', content: system },
           { role: 'user', content: user },
         ],
-        temperature: 0.7,
-        max_completion_tokens: 2000, // mimo 等推理模型需预留 reasoning 空间
+        temperature: opts?.temperature ?? 0.7,
+        // 双字段兼容:MiMo 等认 max_completion_tokens,DeepSeek/Qwen 等认 max_tokens;多余字段多数服务端忽略
+        max_completion_tokens: opts?.maxTokens ?? 2000, // mimo 等推理模型需预留 reasoning 空间
+        max_tokens: opts?.maxTokens ?? 2000,
         ...(opts?.json ? { response_format: { type: 'json_object' } } : {}),
       }),
+      ...(opts?.timeoutMs ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {}),
     });
     if (!res.ok) throw new Error(`LLM HTTP ${res.status}`);
     const data = await res.json();

@@ -20,10 +20,10 @@ import {
   XIcon,
 } from '@phosphor-icons/react';
 
-type Evidence = { id: string; title: string; type: string; url?: string; date?: string; excerpt?: string };
+type Evidence = { id: string; title: string; type: string; url?: string | null; date?: string | null; excerpt?: string | null };
 type WithEvidence = { evidence_ids?: string[] };
 type Artifact = {
-  meta: { content_count: number; time_range?: { from?: string; to?: string } };
+  meta: { content_count: number; time_range?: { from?: string; to?: string } | null };
   evidence_index: Evidence[];
   profile: {
     summary: { one_sentence: string; core_insights: Array<{ claim: string; explanation: string } & WithEvidence> };

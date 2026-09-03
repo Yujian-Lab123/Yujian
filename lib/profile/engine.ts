@@ -51,8 +51,9 @@ export interface AnalyzeOptions {
   batchSize?: number;      // 每批送抽取的内容条数
   maxTextChars?: number;   // 单条正文截断长度
   maxCandidates?: number;  // 候选线索总量上限
-  maxItems?: number;       // 单人内容条数上限(超出的按时间均匀采样,保留跨年证据)
+  maxItems?: number;       // 单人内容条数上限(超出的取最新 N 篇)
   cacheFile?: string;      // 抽取缓存文件路径;内容未变则跳过该条的 LLM 调用
+  onProgress?: (p: { stage: 'extract' | 'synthesize'; message: string; batchDone?: number; batchTotal?: number; clues?: number; cacheHits?: number; cacheTotal?: number }) => void;
 }
 
 // ---- 抽取缓存:键 = 提示词版本 + 模型 + 内容 id + 正文哈希;任一变化自动失效 ----
@@ -128,6 +129,7 @@ async function extractCandidates(
   maxCandidates: number,
   cache: ExtractCache,
   cacheFile?: string,
+  onProgress?: AnalyzeOptions['onProgress'],
 ): Promise<{ candidates: Candidate[]; warnings: string[]; cacheHits: number; cacheTotal: number }> {
   const model = process.env.LLM_MODEL || 'default';
   const cheap = process.env.LLM_CHEAP_MODEL || model;
@@ -170,7 +172,10 @@ async function extractCandidates(
       }
       done++;
       const secs = Math.round((Date.now() - started) / 1000);
-      console.error(`[engine] 抽取进度 ${done}/${batches.length} 批(缓存命中 ${cacheHits}/${contents.length},累计 ${results.filter(Boolean).flat().length} 条线索,${secs}s)`);
+      const clues = results.filter(Boolean).flat().length;
+      const message = `抽取进度 ${done}/${batches.length} 批(缓存命中 ${cacheHits}/${contents.length},累计 ${clues} 条线索,${secs}s)`;
+      console.error(`[engine] ${message}`);
+      onProgress?.({ stage: 'extract', message, batchDone: done, batchTotal: batches.length, clues, cacheHits, cacheTotal: contents.length });
     }
   }
 
@@ -278,10 +283,12 @@ export async function analyzeProfile(raw: RawContent[], opts: AnalyzeOptions = {
   const trimmed: NormalizedContent[] = contents.map((c) => ({ ...c, text: c.text.slice(0, maxText) }));
 
   const cache = loadCache(opts.cacheFile);
-  const { candidates, warnings, cacheHits, cacheTotal } = await extractCandidates(trimmed, opts.maxCandidates ?? 400, cache, opts.cacheFile);
+  const { candidates, warnings, cacheHits, cacheTotal } = await extractCandidates(trimmed, opts.maxCandidates ?? 400, cache, opts.cacheFile, opts.onProgress);
   if (candidates.length === 0) throw new Error('第一阶段未提取到任何候选线索,无法生成画像。');
 
-  console.error(`[engine] 抽取完成,开始综合(压缩漏斗 → 六维画像,单次大调用,推理模型较慢,请耐心等待)…`);
+  const synthMsg = `抽取完成(${candidates.length} 条线索),开始综合(压缩漏斗 → 六维画像)…`;
+  console.error(`[engine] ${synthMsg}`);
+  opts.onProgress?.({ stage: 'synthesize', message: synthMsg, clues: candidates.length });
   const { profile, warnings: synthWarnings } = await synthesizeProfile(opts.name ?? null, trimmed, candidates);
   const validIds = new Set(contents.map((c) => c.id));
   const sanitized = sanitizeProfile(profile, validIds, contents);

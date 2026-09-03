@@ -154,7 +154,7 @@ export const MINS = {
 
 export interface ProfileArtifact {
   schema_version: 1;
-  subject: { name: string | null };
+  subject: { name: string | null; avatarUrl?: string | null };
   meta: {
     generated_at: string;
     prompt_version: string;

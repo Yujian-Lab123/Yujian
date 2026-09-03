@@ -107,6 +107,8 @@ CLI 做宽松字段映射,兼容 media-crawler / 知乎 API 常见命名:`conten
 
 实现:`lib/profile/jobs.ts`(进程内任务表,挂在 globalThis,仅适用自托管常驻进程)+ `lib/profile/store.ts`(产物读写/输入列表/宽松字段映射,CLI 与 API 共用)。引擎通过 `onProgress` 回调上报进度。
 
+头像:`public/avatars/<slug>.jpg` 优先,缺失回退水墨兜底图。抓取:`python scripts/fetch-avatar-browser.py <url_token> <slug>`(复用爬虫登录态;知乎有频控,失败可手动放图)。
+
 ## 人工评析流程
 
 1. 选定大V,抓取 30~50 篇回答+文章(只要本人创作,丢弃评论与他人内容);

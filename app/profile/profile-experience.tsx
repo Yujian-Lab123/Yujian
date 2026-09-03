@@ -102,7 +102,7 @@ function DimensionTitle({ no, title, note }: { no: string; title: string; note: 
   return <div className="reference-dimension-title"><b>{no}</b><span><strong>{title}</strong><small>{note}</small></span></div>;
 }
 
-export default function ProfileExperience({ artifact }: { artifact: Artifact }) {
+export default function ProfileExperience({ artifact, avatarSrc }: { artifact: Artifact; avatarSrc?: string | null }) {
   const [query, setQuery] = useState('');
   const [selection, setSelection] = useState<EvidenceSelection>(null);
   const [connectorPaths, setConnectorPaths] = useState<ConnectorPath[]>([]);
@@ -289,7 +289,7 @@ export default function ProfileExperience({ artifact }: { artifact: Artifact }) 
         </section>
 
         <section ref={centerRef} className="reference-center">
-          <div className="reference-portrait"><Image src="/images/profile/ink-avatar-fallback-v1.png" alt="水墨人物头像（演示兜底素材）" fill sizes="260px" priority /></div>
+          <div className="reference-portrait"><Image src={avatarSrc || '/images/profile/ink-avatar-fallback-v1.png'} alt="人物头像" fill sizes="260px" priority /></div>
           <EvidenceButton title="一句话人物理解" description={profile.summary.one_sentence} evidenceIds={profile.summary.core_insights.flatMap((item) => item.evidence_ids || [])} onOpen={setSelection} className="reference-center-caption">
             <strong>{mapClaim}</strong><small>公开内容样本 · {period}</small>
           </EvidenceButton>

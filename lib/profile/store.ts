@@ -91,6 +91,31 @@ export function readArtifactFile(outDir: string, slug: string): ProfileArtifact 
 
 export interface CrawlerInput { file: string; name: string; count: number; timeRange: string | null }
 
+/** 可选的输入元数据:data/crawler/<同名>.meta.json → {name?, avatarUrl?, profileUrl?} */
+export interface InputMeta { name?: string; avatarUrl?: string; profileUrl?: string }
+
+export function readInputMeta(dataDir: string, jsonFile: string): InputMeta | null {
+  const metaPath = path.join(dataDir, jsonFile.replace(/\.json$/, '.meta.json'));
+  if (metaPath === path.join(dataDir, jsonFile)) return null;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+    return { name: parsed.name, avatarUrl: parsed.avatarUrl, profileUrl: parsed.profileUrl };
+  } catch {
+    return null;
+  }
+}
+
+/** 本地头像解析:public/avatars/<slug>.(jpg|jpeg|png|webp),没有则返回 null(前端回退水墨兜底图) */
+export function resolveLocalAvatar(publicDir: string, slug: string): string | null {
+  if (!/^[^\\/]+$/.test(slug)) return null;
+  const dir = path.join(publicDir, 'avatars');
+  if (!fs.existsSync(dir)) return null;
+  for (const ext of ['jpg', 'jpeg', 'png', 'webp']) {
+    if (fs.existsSync(path.join(dir, `${slug}.${ext}`))) return `/avatars/${slug}.${ext}`;
+  }
+  return null;
+}
+
 /** 列出 data/crawler 下可分析的输入文件(宽松解析,只取统计信息) */
 export function listCrawlerInputs(dataDir: string): CrawlerInput[] {
   if (!fs.existsSync(dataDir)) return [];

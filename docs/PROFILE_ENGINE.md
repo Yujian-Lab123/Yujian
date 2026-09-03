@@ -8,8 +8,8 @@
 ```
 原始内容(RawContent[])
   → normalizeContents 归一化(字段宽松映射 / HTML 清洗 / 时间规范化 / 稳定 id)
-  → [阶段一·便宜模型 mimo-v2.5] 逐批提取候选线索(0~4 条/篇,六类 kind)
-  → [阶段二·主模型 mimo-v2.5-pro] 压缩漏斗(删弱证据→并同义→提上位模式→按六标准排序)
+  → [阶段一·解析模型 qwen3.7-flash] 逐批提取候选线索(0~4 条/篇,六类 kind)
+  → [阶段二·汇总模型 qwen3.8-flash] 压缩漏斗(删弱证据→并同义→提上位模式→按六标准排序)
   → zod 校验(失败带错误重试一次)
   → 证据消毒(evidence_ids 必须真实存在;无证据结论删除;unknown 结论挪入 unknowns;按 LIMITS 裁剪)
   → ProfileArtifact(JSON)+ 人工评析报告(Markdown)
@@ -119,8 +119,8 @@ CLI 做宽松字段映射,兼容 media-crawler / 知乎 API 常见命名:`conten
 
 - **抽取缓存**:默认写 `data/crawler/.extract-cache.json`,键 = 提示词版本+模型+内容id+正文哈希。内容不变的重跑直接命中(0 次抽取调用),换模型或改提示词自动失效;`--cache <path>` 可换位置,`--max-items N` 限制单人分析条数(默认 80,超出按时间均匀采样保跨年证据)。
 
-- **MiMo 是推理模型**,`max_completion_tokens` 包含 reasoning(实测抽取阶段思考约占 4k token)。`EXTRACT_OPTS.maxTokens=16000` / `SYNTH_OPTS.maxTokens=32000` 已留足;若换非推理模型可调低。
+- **当前 Qwen 配置**：`.env.local` 中抽取使用 `qwen3.7-flash`，汇总使用 `qwen3.8-flash`；画像任务显式关闭 `enable_thinking`，以降低延迟与推理 token 消耗。`EXTRACT_OPTS.maxTokens=4096` / `SYNTH_OPTS.maxTokens=8192` 是结构化 JSON 的安全上限，可按实际产物长度再下调。
 - 单条正文默认截断 3000 字(`--max-chars` / `opts.maxTextChars`);候选线索上限 400 条。
 - 内容不足(如 <10 篇)时轨迹/风格维度容易低于建议条数,`meta.warnings` 会如实提示,报告"管线告警"一节可见。
 - 只有文章/回答、没有评论互动时,对话风格置信度偏低——这是《用户画像.txt》预期的行为,引擎会把它写进 unknowns 而不是编造。
-- 成本参考:12 篇样例 ≈ 2 次抽取(flash 档)+ 1 次综合(pro 档);30~50 篇真实数据约 5~7 次调用。
+- 成本参考:12 篇样例 ≈ 2 次抽取(flash 档)+ 1 次汇总(flash 档);30~50 篇真实数据约 5~7 次调用。首次真实验证建议加 `--max-items 12`，确认质量后再扩大样本。

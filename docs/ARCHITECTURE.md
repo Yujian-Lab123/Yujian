@@ -5,7 +5,7 @@
 - **框架**：Next.js 15（App Router，TypeScript strict），前后端同仓，便于部署到 Sealos/Cloudflare 获取公网 HTTPS 回调。
 - **样式**：Tailwind CSS 3；双视觉系统——外蓝（知乎蓝墨，Landing/连接成功/已遇见）+ 内暖（米纸暖色，理解/推荐/我的）。
 - **存储**：`node:sqlite`（Node 24 内置，零依赖）。接口抽象保留，赛后换 PostgreSQL + pgvector 只改 `lib/db` 与 `lib/retrieval`。
-- **AI**：OpenAI 兼容协议 adapter（mimo / DashScope / DeepSeek 均可）；未配置 key 时全部回退 Mock，Demo 永不崩。
+- **AI**：OpenAI 兼容协议 adapter（当前画像验证用 Qwen；亦兼容 DashScope / DeepSeek 等）；未配置 key 时全部回退 Mock，Demo 永不崩。
 
 ## 目录
 
@@ -18,6 +18,7 @@ app/                  # 页面 + API Routes
   connect/[id]/       # 连接成功（蓝）
   connections/        # 已遇见
   me/                 # 我的：此刻状态 / 遇见开关 / 演示身份
+  profile/            # 公开内容画像：六维理解地图 + 可追溯证据抽屉
   api/…               # 见下
 lib/
   axes.ts             # 16 维概念轴、问题库、核心问题库、stateVec

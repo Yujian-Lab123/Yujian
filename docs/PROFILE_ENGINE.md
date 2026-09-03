@@ -97,7 +97,7 @@ CLI 做宽松字段映射,兼容 media-crawler / 知乎 API 常见命名:`conten
 
 ## Web 页面(/profile)与 API
 
-`/profile` 页直接渲染 `profile-output/` 下的产物,顶部可切换人物、右侧面板可从 `data/crawler/*.json` 发起生成(后台任务 + 进度轮询),完成自动跳转。底层:
+`/profile` 整页渲染 `profile-output/` 下的产物;切换人物与生成入口收在右下角浮层(不占版面)。底层:
 
 | 端点 | 作用 |
 | --- | --- |

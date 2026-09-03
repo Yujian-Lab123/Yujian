@@ -75,7 +75,7 @@ fetchZhihuContents 原样存档 zhihu_identities.raw_contents(500KB 上限)→�
 | --- | --- | --- |
 | `lib/profile/schema.ts` | zod Schema、LIMITS/MINS(每维条数)、产物类型 | — |
 | `lib/profile/prompt.ts` | 两阶段系统提示词 | **改提示词必须同步改 `PROMPT_VERSION`**,否则缓存回旧结果 |
-| `lib/profile/engine.ts` | 管线;`EXTRACT_CONCURRENCY=3`、`EXTRACT_RETRIES=1`(119-120 行);maxItems 默认 80(267 行,超出按时间均匀采样保跨年证据);maxTextChars 默认 3000 | — |
+| `lib/profile/engine.ts` | 管线;`EXTRACT_CONCURRENCY=3`、`EXTRACT_RETRIES=1`(119-120 行);maxItems 默认 80(超出取最新 N 篇);maxTextChars 默认 3000 | — |
 | `lib/profile/report.ts` | Markdown 渲染 + 评析表 + supports 索引解析 | — |
 | `scripts/analyze-profile.ts` | CLI 入口与参数 | — |
 

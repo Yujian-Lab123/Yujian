@@ -95,6 +95,18 @@ CLI 做宽松字段映射,兼容 media-crawler / 知乎 API 常见命名:`conten
 
 每条结论:`claim / explanation / type(explicit|inferred) / confidence / evidence_ids`,点击证据可见原文、时间、链接(Level 3)。
 
+## Web 页面(/profile)与 API
+
+`/profile` 页直接渲染 `profile-output/` 下的产物,顶部可切换人物、右侧面板可从 `data/crawler/*.json` 发起生成(后台任务 + 进度轮询),完成自动跳转。底层:
+
+| 端点 | 作用 |
+| --- | --- |
+| `GET /api/profile/inputs` | 列出可分析输入 + 已有产物 |
+| `POST /api/profile/generate` | `{file, name, maxItems?, maxChars?}` 启动后台任务,返回 jobId |
+| `GET /api/profile/jobs/[id]` | 轮询状态/进度(抽取 x/y 批、线索数、缓存命中) |
+
+实现:`lib/profile/jobs.ts`(进程内任务表,挂在 globalThis,仅适用自托管常驻进程)+ `lib/profile/store.ts`(产物读写/输入列表/宽松字段映射,CLI 与 API 共用)。引擎通过 `onProgress` 回调上报进度。
+
 ## 人工评析流程
 
 1. 选定大V,抓取 30~50 篇回答+文章(只要本人创作,丢弃评论与他人内容);
@@ -117,7 +129,7 @@ CLI 做宽松字段映射,兼容 media-crawler / 知乎 API 常见命名:`conten
 
 ## 已知边界与调参
 
-- **抽取缓存**:默认写 `data/crawler/.extract-cache.json`,键 = 提示词版本+模型+内容id+正文哈希。内容不变的重跑直接命中(0 次抽取调用),换模型或改提示词自动失效;`--cache <path>` 可换位置,`--max-items N` 限制单人分析条数(默认 80,超出按时间均匀采样保跨年证据)。
+- **抽取缓存**:默认写 `data/crawler/.extract-cache.json`,键 = 提示词版本+模型+内容id+正文哈希。内容不变的重跑直接命中(0 次抽取调用),换模型或改提示词自动失效;`--cache <path>` 可换位置,`--max-items N` 限制单人分析条数(默认 80,超出取最新 N 篇)。
 
 - **当前 Qwen 配置**：`.env.local` 中抽取使用 `qwen3.7-flash`，汇总使用 `qwen3.8-flash`；画像任务显式关闭 `enable_thinking`，以降低延迟与推理 token 消耗。`EXTRACT_OPTS.maxTokens=4096` / `SYNTH_OPTS.maxTokens=8192` 是结构化 JSON 的安全上限，可按实际产物长度再下调。
 - 单条正文默认截断 3000 字(`--max-chars` / `opts.maxTextChars`);候选线索上限 400 条。

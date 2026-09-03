@@ -24,7 +24,7 @@ export default function EncounterPage() {
   useEffect(() => {
     setDetail(null);
     if (card) fetch(`/api/encounters/${card.id}`).then((r) => r.json()).then((d) => d.ok && setDetail(d));
-  }, [card?.id]);
+  }, [card]);
 
   const feedback = async (type: string) => {
     if (!card) return;

@@ -149,7 +149,7 @@ export default function MePage() {
                   <p className="mt-2 text-xs leading-6 text-sumi-500">
                     你长期在意的：{me.understanding.topics.join('、')}。你正在寻找能真诚交流、彼此启发的伙伴。
                   </p>
-                  <button className="mt-3 text-xs text-ink-600 underline" onClick={() => router.push('/onboarding')}>查看完整摘要 ›</button>
+                  <button className="mt-3 text-xs text-ink-600 underline" onClick={() => router.push('/profile')}>查看完整画像 ›</button>
                 </>
               ) : (
                 <p className="text-sm text-sumi-400">还没有理解摘要。<button className="text-ink-600 underline" onClick={() => router.push('/onboarding')}>开始理解 →</button></p>

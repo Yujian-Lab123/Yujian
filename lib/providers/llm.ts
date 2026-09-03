@@ -11,7 +11,16 @@ export function llmConfigured(): boolean {
 export interface LLMLog { model: string; latencyMs: number; ok: boolean; error?: string; promptVersion: string }
 export const llmLogs: LLMLog[] = [];
 
-export interface ChatOpts { json?: boolean; model?: string; maxTokens?: number; temperature?: number; timeoutMs?: number; baseUrl?: string }
+export interface ChatOpts {
+  json?: boolean;
+  model?: string;
+  maxTokens?: number;
+  temperature?: number;
+  timeoutMs?: number;
+  baseUrl?: string;
+  /** Qwen 等混合思考模型可显式关闭思考，减少结构化抽取的延迟和费用。 */
+  thinking?: boolean;
+}
 
 export async function chatCompletion(system: string, user: string, opts?: ChatOpts): Promise<string | null> {
   if (!llmConfigured()) return null;
@@ -36,6 +45,7 @@ export async function chatCompletion(system: string, user: string, opts?: ChatOp
         // 双字段兼容:MiMo 等认 max_completion_tokens,DeepSeek/Qwen 等认 max_tokens;多余字段多数服务端忽略
         max_completion_tokens: opts?.maxTokens ?? 2000, // mimo 等推理模型需预留 reasoning 空间
         max_tokens: opts?.maxTokens ?? 2000,
+        ...(typeof opts?.thinking === 'boolean' ? { enable_thinking: opts.thinking } : {}),
         ...(opts?.json ? { response_format: { type: 'json_object' } } : {}),
       }),
       ...(opts?.timeoutMs ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {}),

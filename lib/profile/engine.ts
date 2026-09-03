@@ -30,16 +30,20 @@ const EXTRACT_OPTS = {
   model: process.env.LLM_CHEAP_MODEL || undefined,
   // 可选:抽取层走另一家更快的厂商(如 deepseek-chat / qwen-flash),留空则与主模型同源
   baseUrl: process.env.LLM_CHEAP_BASE_URL || undefined,
-  maxTokens: 16_000, // mimo 是推理模型:max_completion_tokens 包含 reasoning,实测思考约占 4k,需给正文留足空间
+  // Qwen Flash 在关闭思考后只需覆盖候选线索 JSON；较低上限避免爬虫小样本产生失控费用。
+  maxTokens: 4_096,
   temperature: 0.2,
   timeoutMs: 180_000,
+  thinking: false,
 } as const;
 
 const SYNTH_OPTS = {
   json: true,
-  maxTokens: 32_000, // 推理空间 + 完整画像 JSON
+  // 六维画像完整 JSON 正常远低于此上限，保留余量以避免截断。
+  maxTokens: 8_192,
   temperature: 0.2,
   timeoutMs: 300_000,
+  thinking: false,
 } as const;
 
 export interface AnalyzeOptions {
@@ -263,12 +267,11 @@ export async function analyzeProfile(raw: RawContent[], opts: AnalyzeOptions = {
   let contents = normalizeContents(raw);
   if (contents.length === 0) throw new Error('没有可分析的内容(全部为空文本)。');
 
-  // 条数上限:超出时按时间均匀采样(保头保尾,保留跨年证据),而不是只取最新
+  // 条数上限:超出时取最新的 N 篇(内容已按时间升序)
   const maxItems = opts.maxItems ?? 80;
   if (contents.length > maxItems) {
-    const step = (contents.length - 1) / (maxItems - 1);
-    contents = Array.from({ length: maxItems }, (_, i) => contents[Math.floor(i * step)]);
-    console.error(`[engine] 内容 ${contents.length} 条超过上限,已按时间均匀采样至 ${maxItems} 条。`);
+    contents = contents.slice(-maxItems);
+    console.error(`[engine] 内容超过上限,取最新 ${maxItems} 篇参与分析。`);
   }
 
   const maxText = opts.maxTextChars ?? 3000;

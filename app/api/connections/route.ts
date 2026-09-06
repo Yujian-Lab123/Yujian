@@ -1,19 +1,26 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { desc, eq, or, and } from 'drizzle-orm';
+import { connectionIntents, connections, db } from '@/lib/db';
 import { getUser } from '@/lib/db/users';
 import { getSessionUserId } from '@/lib/session';
 
 export async function GET() {
-  const uid = await getSessionUserId();
-  if (!uid) return NextResponse.json({ ok: false, loginRequired: true }, { status: 401 });
-  const d = getDb();
-  const mutual = (d.prepare('SELECT * FROM connections WHERE user_a = ? OR user_b = ? ORDER BY created_at DESC').all(uid, uid) as any[])
-    .map((r) => {
-      const otherId = r.user_a === uid ? r.user_b : r.user_a;
-      const other = getUser(otherId);
-      return { id: r.id, type: 'mutual', other, shared: JSON.parse(r.shared || '[]'), question: (JSON.parse(r.bridge || '{}')).conversation_question || '', created_at: r.created_at };
-    });
-  const pending = (d.prepare("SELECT * FROM connection_intents WHERE from_id = ? AND status = 'pending' ORDER BY created_at DESC").all(uid) as any[])
-    .map((r) => ({ id: r.id, type: 'pending', other: getUser(r.to_id), created_at: r.created_at }));
+  const userId = await getSessionUserId();
+  if (!userId) return NextResponse.json({ ok: false, loginRequired: true }, { status: 401 });
+  const [mutualRows, pendingRows] = await Promise.all([
+    db.select().from(connections).where(or(eq(connections.userA, userId), eq(connections.userB, userId))).orderBy(desc(connections.createdAt)),
+    db.select().from(connectionIntents).where(and(eq(connectionIntents.fromId, userId), eq(connectionIntents.status, 'pending'))).orderBy(desc(connectionIntents.createdAt)),
+  ]);
+  const mutual = await Promise.all(mutualRows.map(async (row) => {
+    const otherId = row.userA === userId ? row.userB : row.userA;
+    const other = await getUser(otherId);
+    return { id: row.id, type: 'mutual', other, shared: row.shared, question: String(row.bridge.conversation_question || ''), created_at: row.createdAt.toISOString() };
+  }));
+  const pending = await Promise.all(pendingRows.map(async (row) => ({
+    id: row.id,
+    type: 'pending',
+    other: await getUser(row.toId),
+    created_at: row.createdAt.toISOString(),
+  })));
   return NextResponse.json({ ok: true, connections: [...mutual, ...pending] });
 }

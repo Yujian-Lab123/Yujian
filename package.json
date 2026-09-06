@@ -4,16 +4,30 @@
   "private": true,
   "description": "遇见 —— 发现一个值得聊一句的人。知乎 Hackathon 项目。",
   "scripts": {
-    "dev": "next dev",
+    "bootstrap": "tsx scripts/bootstrap.ts",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/db-migrate.ts",
+    "db:seed": "tsx scripts/db-seed.ts",
+    "dev": "concurrently -k -n web,worker -c blue,magenta \"npm:dev:web\" \"npm:dev:worker\"",
+    "dev:web": "next dev",
+    "dev:worker": "tsx watch scripts/profile-worker.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build",
     "audit:prod": "npm audit --omit=dev --audit-level=high"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
+    "concurrently": "^10.0.5",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
     "next": "^16.3.3",
+    "pg": "^8.23.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "sharp": "^0.35.4",
@@ -21,13 +35,17 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "autoprefixer": "^10.4.21",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.3",
     "postcss": "^8.5.26",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.3"
+    "tsx": "^4.23.13",
+    "typescript": "^5.7.3",
+    "vitest": "^5.0.0"
   }
 }

@@ -1,12 +1,9 @@
+import { and, eq, or } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import { topAxes } from '../axes';
 import { contentBridge, deepMatch, pairScore } from '../ai/bridge';
-import { getDb, getUserVectors, type ContentRow } from '../db';
+import { db, getUserVectors, recommendations, connections, connectionIntents, feedback, type ContentRow } from '../db';
 import { getUser, listUsers, type UserRow } from '../db/users';
-
-// ============ 在线匹配管线 ============
-// Hard Filter → Vector Recall → 算法粗排 → Reranker → LLM Deep Match → Content/Conversation Bridge
-// 禁止 O(N²) 全文 LLM 比较；LLM 只碰 Top 候选。
 
 export interface RecCard {
   id: string;
@@ -32,139 +29,132 @@ interface Scored {
 }
 
 export async function buildEncounters(viewerId: string): Promise<RecCard[]> {
-  const d = getDb();
-  const viewerMaybe = getUser(viewerId);
-  if (!viewerMaybe) return [];
-  const viewer: UserRow = viewerMaybe;
-  const vv = getUserVectors(viewerId);
+  const [viewer, viewerVectors, allUsers, existingRecs, existingConnections, existingIntents, ignored] = await Promise.all([
+    getUser(viewerId),
+    getUserVectors(viewerId),
+    listUsers(),
+    db.select({ targetId: recommendations.targetId }).from(recommendations).where(eq(recommendations.viewerId, viewerId)),
+    db.select({ userA: connections.userA, userB: connections.userB }).from(connections)
+      .where(or(eq(connections.userA, viewerId), eq(connections.userB, viewerId))),
+    db.select({ fromId: connectionIntents.fromId, toId: connectionIntents.toId }).from(connectionIntents)
+      .where(and(eq(connectionIntents.fromId, viewerId), eq(connectionIntents.status, 'pending'))),
+    db.select({ targetId: recommendations.targetId }).from(feedback)
+      .innerJoin(recommendations, eq(feedback.recommendationId, recommendations.id))
+      .where(and(eq(feedback.viewerId, viewerId), eq(feedback.type, 'not_interested'))),
+  ]);
+  if (!viewer) return [];
+  const currentViewer = viewer;
 
-  // Step 1: Hard Filter（SQL 层条件，几乎零成本）
-  let candidates = listUsers().filter((u) => u.id !== viewerId && u.encounter_enabled === 1);
-  if (viewer.intents.length > 0) {
-    candidates = candidates.filter((u) => u.intents.some((i) => viewer.intents.includes(i)));
-  }
+  const excluded = new Set<string>([
+    ...existingConnections.map((item) => item.userA === viewerId ? item.userB : item.userA),
+    ...existingIntents.map((item) => item.toId),
+    ...ignored.map((item) => item.targetId),
+  ]);
+  let candidates = allUsers.filter((user) => user.id !== viewerId && user.encounter_enabled === 1 && !excluded.has(user.id));
+  if (viewer.intents.length > 0) candidates = candidates.filter((user) => user.intents.some((intent) => viewer.intents.includes(intent)));
 
-  // Step 2: Vector Recall（多维向量各取 Top，合并去重；Demo 规模即全量）
-  const scored: Scored[] = candidates.map((u) => {
-    const uv = getUserVectors(u.id);
-    return {
-      u,
-      lt: Math.max(0, pairScorePart(vv.long_term, uv.long_term)),
-      val: 0, conv: 0, cur: 0, intent: 0, novelty: 0, diversity: 0, coarse: 0, rerank: 0, mutual: 0, final: 0,
-    };
-  });
-  for (const s of scored) {
-    const uv = getUserVectors(s.u.id);
-    s.val = cos0(vv.value, uv.value);
-    s.conv = cos0(vv.conversation, uv.conversation);
-    s.cur = vv.current && uv.current ? cos0(vv.current, uv.current) : 0;
-  }
+  const vectorPairs = await Promise.all(candidates.map(async (user) => ({ user, vectors: await getUserVectors(user.id) })));
+  const seen = new Set(existingRecs.map((item) => item.targetId));
+  const scored: Scored[] = vectorPairs.map(({ user, vectors }) => ({
+    u: user,
+    lt: Math.max(0, cos0(viewerVectors.long_term, vectors.long_term)),
+    val: cos0(viewerVectors.value, vectors.value),
+    conv: cos0(viewerVectors.conversation, vectors.conversation),
+    cur: viewerVectors.current && vectors.current ? cos0(viewerVectors.current, vectors.current) : 0,
+    intent: viewer.intents.length === 0 || user.intents.some((intent) => viewer.intents.includes(intent)) ? 1 : 0.5,
+    novelty: seen.has(user.id) ? 0.3 : 1,
+    diversity: 0,
+    coarse: 0,
+    rerank: 0,
+    mutual: 0,
+    final: 0,
+  }));
 
-  // Step 3: Algorithmic Ranking（启发式权重，概览 §八）
-  for (const s of scored) {
-    const seen = d.prepare('SELECT 1 FROM recommendations WHERE viewer_id = ? AND target_id = ?').get(viewerId, s.u.id);
-    s.novelty = seen ? 0.3 : 1;
-    s.intent = viewer.intents.length === 0 || s.u.intents.some((i) => viewer.intents.includes(i)) ? 1 : 0.5;
-  }
   scored.sort((a, b) => b.lt - a.lt);
   const pickedAxes: string[] = [];
-  for (const s of scored) {
-    const dom = topAxes(getUserVectors(s.u.id).long_term, 1)[0]?.axis || '';
-    s.diversity = pickedAxes.length === 0 || !pickedAxes.includes(dom) ? 1 : 0.4;
-    pickedAxes.push(dom);
-    // 30% long_term + 25% conversation + 20% current + 15% intent + 5% novelty + 5% diversity
-    s.coarse = 0.3 * s.lt + 0.25 * s.conv + 0.2 * s.cur + 0.15 * s.intent + 0.05 * s.novelty + 0.05 * s.diversity;
-    // Step 4: Reranker（Mock：粗排 + 价值问题层余弦；真实阶段换 Qwen Reranker）
-    s.rerank = 0.7 * s.coarse + 0.3 * s.val;
+  for (const item of scored) {
+    const vectors = vectorPairs.find((pair) => pair.user.id === item.u.id)!.vectors;
+    const dominant = topAxes(vectors.long_term, 1)[0]?.axis || '';
+    item.diversity = pickedAxes.length === 0 || !pickedAxes.includes(dominant) ? 1 : 0.4;
+    pickedAxes.push(dominant);
+    item.coarse = 0.3 * item.lt + 0.25 * item.conv + 0.2 * item.cur + 0.15 * item.intent + 0.05 * item.novelty + 0.05 * item.diversity;
+    item.rerank = 0.7 * item.coarse + 0.3 * item.val;
+    item.mutual = Math.min(pairScore(viewerVectors, vectors), pairScore(vectors, viewerVectors));
+    item.final = 0.55 * item.rerank + 0.45 * item.mutual;
   }
-  scored.sort((a, b) => b.rerank - a.rerank);
-  const top = scored.slice(0, 5);
+  scored.sort((a, b) => b.final - a.final);
 
-  // Step 5: LLM Deep Match（只给 Top 5）+ 双向 MutualScore = min(A→B, B→A)
-  for (const s of top) {
-    const uv = getUserVectors(s.u.id);
-    const ab = pairScore(vv, uv);
-    const ba = pairScore(uv, vv);
-    s.mutual = Math.min(ab, ba);
-    s.final = 0.55 * s.rerank + 0.45 * s.mutual;
-  }
-  top.sort((a, b) => b.final - a.final);
-
-  // Step 6: Content Bridge + Conversation Bridge，持久化推荐
-  async function makeCard(s: Scored): Promise<RecCard> {
-    const bridge = contentBridge(viewerId, s.u.id);
-    const existing = d.prepare("SELECT * FROM recommendations WHERE viewer_id = ? AND target_id = ? AND status = 'fresh'").get(viewerId, s.u.id) as any;
-    let reason: any;
-    let anchorId: string;
-    if (existing?.reason) {
-      reason = JSON.parse(existing.reason);
-      anchorId = existing.anchor_id;
-    } else {
-      reason = await deepMatch(viewer, s.u, bridge.anchor.vec);
-      anchorId = bridge.anchor.id;
-      reason.bridge_reason = bridge.reason;
-    }
+  async function makeCard(item: Scored): Promise<RecCard | null> {
+    const bridge = await contentBridge(viewerId, item.u.id);
+    if (!bridge) return null;
+    const [existing] = await db.select().from(recommendations).where(and(
+      eq(recommendations.viewerId, viewerId), eq(recommendations.targetId, item.u.id), eq(recommendations.status, 'fresh'),
+    )).limit(1);
+    const reason = existing?.reason && Object.keys(existing.reason).length
+      ? existing.reason as any
+      : { ...(await deepMatch(currentViewer, item.u, bridge.anchor.vec)), bridge_reason: bridge.reason };
     const id = existing?.id || `rec-${randomBytes(6).toString('hex')}`;
-    const scoresJson = JSON.stringify({ lt: s.lt, conv: s.conv, cur: s.cur, intent: s.intent, novelty: s.novelty, coarse: s.coarse, rerank: s.rerank, mutual: s.mutual, final: s.final });
-    if (existing) {
-      d.prepare("UPDATE recommendations SET scores = ?, anchor_id = ?, reason = ?, status = 'fresh' WHERE id = ?")
-        .run(scoresJson, anchorId, JSON.stringify(reason), id);
-    } else {
-      d.prepare("INSERT INTO recommendations (id, viewer_id, target_id, scores, anchor_id, reason, status) VALUES (?,?,?,?,?,?,'fresh')")
-        .run(id, viewerId, s.u.id, scoresJson, anchorId, JSON.stringify(reason));
-    }
+    const scores = { lt: item.lt, conv: item.conv, cur: item.cur, intent: item.intent, novelty: item.novelty, coarse: item.coarse, rerank: item.rerank, mutual: item.mutual, final: item.final };
+    await db.insert(recommendations).values({
+      id, viewerId, targetId: item.u.id, scores, anchorId: bridge.anchor.id, reason, status: 'fresh',
+    }).onConflictDoUpdate({
+      target: [recommendations.viewerId, recommendations.targetId, recommendations.status],
+      set: { scores, anchorId: bridge.anchor.id, reason },
+    });
     return {
       id,
-      target: { id: s.u.id, name: s.u.name, role: s.u.role, city: s.u.city, quote: s.u.quote, tags: s.u.tags, zhihu_years: s.u.zhihu_years, upvotes: s.u.upvotes },
+      target: { id: item.u.id, name: item.u.name, role: item.u.role, city: item.u.city, quote: item.u.quote, tags: item.u.tags, zhihu_years: item.u.zhihu_years, upvotes: item.u.upvotes },
       anchor: bridge.anchor,
       reason: reason.bridge_reason || reason.why_for_viewer || '',
-      shared: (reason.shared_ground || []).map((x: any) => x.label),
-      difference: reason.interesting_difference,
+      shared: (reason.shared_ground || []).map((value: any) => value.label),
+      difference: reason.interesting_difference || null,
       question: reason.conversation_question || '',
-      scores: { long_term: s.lt, conversation: s.conv, current: s.cur, intent: s.intent, novelty: s.novelty, coarse: s.coarse, rerank: s.rerank, mutual: s.mutual, final: s.final },
+      scores: { long_term: item.lt, conversation: item.conv, current: item.cur, intent: item.intent, novelty: item.novelty, coarse: item.coarse, rerank: item.rerank, mutual: item.mutual, final: item.final },
       status: 'fresh',
     };
   }
 
-  const cards: RecCard[] = [];
-  for (const s of top.slice(0, 3)) cards.push(await makeCard(s));
-
-  // Step 7: 此刻遇见 —— 有当前状态时，此刻状态最契合的人置顶（Present Self 改变推荐，概览 §十五/§十六）
-  if (vv.current) {
+  const cards = (await Promise.all(scored.slice(0, 3).map(makeCard))).filter((card): card is RecCard => Boolean(card));
+  if (viewerVectors.current) {
     const momentCandidate = [...scored].sort((a, b) => b.cur - a.cur)[0];
-    if (momentCandidate && momentCandidate.cur >= 0.55) {
-      const existingCard = cards.find((c) => c.target.id === momentCandidate.u.id);
-      if (existingCard) {
-        existingCard.moment = true;
-        cards.splice(cards.indexOf(existingCard), 1);
-        cards.unshift(existingCard);
+    if (momentCandidate?.cur >= 0.55) {
+      const existing = cards.find((card) => card.target.id === momentCandidate.u.id);
+      if (existing) {
+        existing.moment = true;
+        cards.splice(cards.indexOf(existing), 1);
+        cards.unshift(existing);
       } else {
-        if (momentCandidate.mutual === 0) {
-          const uv = getUserVectors(momentCandidate.u.id);
-          momentCandidate.mutual = Math.min(pairScore(vv, uv), pairScore(uv, vv));
-          momentCandidate.final = 0.55 * momentCandidate.rerank + 0.45 * momentCandidate.mutual;
-        }
         const card = await makeCard(momentCandidate);
-        card.moment = true;
-        cards.unshift(card);
+        if (card) { card.moment = true; cards.unshift(card); }
       }
     }
   }
   return cards;
 }
 
-function pairScorePart(a: number[], b: number[]): number {
-  return cos0(a, b);
-}
-
 function cos0(a: number[], b: number[]): number {
   if (!a.length || !b.length) return 0;
-  let dot = 0, na = 0, nb = 0;
-  for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
-  return na && nb ? dot / (Math.sqrt(na) * Math.sqrt(nb)) : 0;
+  let dot = 0; let left = 0; let right = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    dot += (a[i] || 0) * (b[i] || 0);
+    left += (a[i] || 0) ** 2;
+    right += (b[i] || 0) ** 2;
+  }
+  return left && right ? dot / (Math.sqrt(left) * Math.sqrt(right)) : 0;
 }
 
-export function getRec(id: string) {
-  const r = getDb().prepare('SELECT * FROM recommendations WHERE id = ?').get(id) as any;
-  return r || null;
+export async function getRec(id: string) {
+  const [row] = await db.select().from(recommendations).where(eq(recommendations.id, id)).limit(1);
+  if (!row) return null;
+  return {
+    id: row.id,
+    viewer_id: row.viewerId,
+    target_id: row.targetId,
+    scores: row.scores,
+    anchor_id: row.anchorId,
+    reason: row.reason,
+    bridge: row.bridge,
+    status: row.status,
+    created_at: row.createdAt.toISOString(),
+  };
 }

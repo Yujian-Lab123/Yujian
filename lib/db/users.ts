@@ -1,58 +1,117 @@
-import { getDb } from './index';
+import { and, eq } from 'drizzle-orm';
+import { createCipheriv, createHash, randomBytes } from 'node:crypto';
+import { db } from './client';
+import { externalIdentities, users } from './schema';
 
 export interface UserRow {
-  id: string; zhihu_user_id: string; name: string; role: string; city: string; quote: string;
-  tags: string[]; intents: string[]; zhihu_years: number; upvotes: string;
-  encounter_enabled: number; auto_reciprocate: number; is_mock: number;
+  id: string;
+  zhihu_user_id: string;
+  name: string;
+  role: string;
+  city: string;
+  quote: string;
+  tags: string[];
+  intents: string[];
+  zhihu_years: number;
+  upvotes: string;
+  encounter_enabled: number;
+  auto_reciprocate: number;
+  is_mock: number;
 }
 
-function mapUser(r: any): UserRow {
+function mapUser(row: typeof users.$inferSelect): UserRow {
   return {
-    id: r.id, zhihu_user_id: r.zhihu_user_id, name: r.name, role: r.role, city: r.city, quote: r.quote,
-    tags: JSON.parse(r.tags || '[]'), intents: JSON.parse(r.intents || '[]'),
-    zhihu_years: r.zhihu_years, upvotes: r.upvotes,
-    encounter_enabled: r.encounter_enabled, auto_reciprocate: r.auto_reciprocate, is_mock: r.is_mock,
+    id: row.id,
+    zhihu_user_id: row.zhihuUserId || '',
+    name: row.name,
+    role: row.role,
+    city: row.city,
+    quote: row.quote,
+    tags: row.tags,
+    intents: row.intents,
+    zhihu_years: row.zhihuYears,
+    upvotes: row.upvotes,
+    encounter_enabled: row.encounterEnabled ? 1 : 0,
+    auto_reciprocate: row.autoReciprocate ? 1 : 0,
+    is_mock: row.isMock ? 1 : 0,
   };
 }
 
-export function getUser(id: string): UserRow | null {
-  const r = getDb().prepare('SELECT * FROM users WHERE id = ?').get(id) as any;
-  return r ? mapUser(r) : null;
+export async function getUser(id: string): Promise<UserRow | null> {
+  const [row] = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return row ? mapUser(row) : null;
 }
 
-export function listUsers(): UserRow[] {
-  return (getDb().prepare('SELECT * FROM users ORDER BY id').all() as any[]).map(mapUser);
+export async function listUsers(): Promise<UserRow[]> {
+  const rows = await db.select().from(users).orderBy(users.id);
+  return rows.map(mapUser);
 }
 
-export function setEncounterEnabled(id: string, enabled: boolean) {
-  getDb().prepare('UPDATE users SET encounter_enabled = ? WHERE id = ?').run(enabled ? 1 : 0, id);
+export async function setEncounterEnabled(id: string, enabled: boolean): Promise<void> {
+  await db.update(users).set({ encounterEnabled: enabled }).where(eq(users.id, id));
 }
 
-// ============ 真实知乎用户（P2 OAuth 接入） ============
-
-export function findUserIdByZhihuId(zhihuUserId: string): string | null {
-  const row = getDb().prepare('SELECT user_id FROM zhihu_identities WHERE zhihu_user_id = ?').get(zhihuUserId) as any;
-  return row?.user_id ?? null;
+export async function findUserIdByZhihuId(zhihuUserId: string): Promise<string | null> {
+  const [row] = await db.select({ userId: externalIdentities.userId }).from(externalIdentities)
+    .where(and(eq(externalIdentities.provider, 'zhihu'), eq(externalIdentities.externalUserId, zhihuUserId))).limit(1);
+  return row?.userId || null;
 }
 
-/** OAuth 成功后落库：已有身份则更新资料，否则创建 is_mock=0 的真实用户 */
-export function upsertRealUser(p: { zhihuUserId: string; name: string; headline: string | null; avatarUrl: string | null; profileUrl: string | null }): string {
-  const d = getDb();
-  const existing = findUserIdByZhihuId(p.zhihuUserId);
+export async function upsertRealUser(profile: {
+  zhihuUserId: string;
+  name: string;
+  headline: string | null;
+  avatarUrl: string | null;
+  profileUrl: string | null;
+}): Promise<string> {
+  const existing = await findUserIdByZhihuId(profile.zhihuUserId);
   if (existing) {
-    d.prepare('UPDATE users SET name = ?, quote = ? WHERE id = ?').run(p.name, p.headline || '', existing);
+    await db.update(users).set({ name: profile.name, quote: profile.headline || '' }).where(eq(users.id, existing));
     return existing;
   }
-  const id = `real-${p.zhihuUserId}`.slice(0, 60);
-  d.prepare(`INSERT INTO users (id, zhihu_user_id, name, role, city, quote, tags, intents, encounter_enabled, auto_reciprocate, is_mock)
-    VALUES (?,?,?,?,?,?,?,?,1,0,0)`)
-    .run(id, p.zhihuUserId, p.name, p.headline || '知乎用户', '', p.headline || '', '[]', '[]');
-  d.prepare('INSERT OR REPLACE INTO zhihu_identities (zhihu_user_id, user_id) VALUES (?,?)').run(p.zhihuUserId, id);
+  const id = `real-${profile.zhihuUserId}`.slice(0, 60);
+  await db.transaction(async (tx) => {
+    await tx.insert(users).values({
+      id,
+      zhihuUserId: profile.zhihuUserId,
+      name: profile.name,
+      role: profile.headline || '知乎用户',
+      quote: profile.headline || '',
+      isMock: false,
+      encounterEnabled: true,
+    }).onConflictDoUpdate({ target: users.id, set: { name: profile.name, quote: profile.headline || '' } });
+    await tx.insert(externalIdentities).values({
+      provider: 'zhihu', externalUserId: profile.zhihuUserId, userId: id, profile: { ...profile },
+    }).onConflictDoNothing();
+  });
   return id;
 }
 
-export function saveZhihuAuth(userId: string, zhihuUserId: string, accessToken: string, expiresAt: number | null, profile: unknown, rawContents: string | null) {
-  getDb().prepare(`UPDATE zhihu_identities SET access_token = ?, expires_at = ?, profile = ?, raw_contents = ?, updated_at = datetime('now')
-    WHERE zhihu_user_id = ?`)
-    .run(accessToken, expiresAt, JSON.stringify(profile), rawContents, zhihuUserId);
+function encryptToken(token: string): string {
+  const source = process.env.TOKEN_ENCRYPTION_KEY;
+  if (!source) throw new Error('OAuth 已启用，但缺少 TOKEN_ENCRYPTION_KEY');
+  const key = createHash('sha256').update(source).digest();
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', key, iv);
+  const encrypted = Buffer.concat([cipher.update(token, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return [iv, tag, encrypted].map((part) => part.toString('base64url')).join('.');
+}
+
+export async function saveZhihuAuth(
+  userId: string,
+  zhihuUserId: string,
+  accessToken: string,
+  expiresAt: number | null,
+  profile: Record<string, unknown>,
+  rawContents: unknown[],
+): Promise<void> {
+  const encryptedAccessToken = encryptToken(accessToken);
+  await db.insert(externalIdentities).values({
+    provider: 'zhihu', externalUserId: zhihuUserId, userId, encryptedAccessToken,
+    tokenExpiresAt: expiresAt ? new Date(expiresAt) : null, profile, rawContents, updatedAt: new Date(),
+  }).onConflictDoUpdate({
+    target: [externalIdentities.provider, externalIdentities.externalUserId],
+    set: { userId, encryptedAccessToken, tokenExpiresAt: expiresAt ? new Date(expiresAt) : null, profile, rawContents, updatedAt: new Date() },
+  });
 }

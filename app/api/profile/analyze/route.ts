@@ -7,6 +7,6 @@ import { getSessionUserId } from '@/lib/session';
 export async function POST() {
   const uid = await getSessionUserId();
   if (!uid) return NextResponse.json({ ok: false, loginRequired: true }, { status: 401 });
-  computeUserVectors(uid);
-  return NextResponse.json({ ok: true, understanding: buildUnderstanding(uid) });
+  await computeUserVectors(uid);
+  return NextResponse.json({ ok: true, understanding: await buildUnderstanding(uid) });
 }

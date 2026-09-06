@@ -65,8 +65,7 @@ function mockDeepMatch(viewer: UserRow, target: UserRow, av: UserVectors, bv: Us
 
 /** Deep Match：优先真实 LLM（仅 Top 候选才调用），失败回退 Mock */
 export async function deepMatch(viewer: UserRow, target: UserRow, anchorVec?: Vec): Promise<DeepMatch> {
-  const av = getUserVectors(viewer.id);
-  const bv = getUserVectors(target.id);
+  const [av, bv] = await Promise.all([getUserVectors(viewer.id), getUserVectors(target.id)]);
   const mock = mockDeepMatch(viewer, target, av, bv, anchorVec);
   if (!process.env.LLM_API_KEY) return mock;
 
@@ -74,20 +73,24 @@ export async function deepMatch(viewer: UserRow, target: UserRow, anchorVec?: Ve
     name: u.name, role: u.role, quote: u.quote,
     long_term_topics: topAxes(v.long_term, 5).map((t) => AXIS_LABELS[t.axis]),
     value_questions: topAxes(v.value, 3).map((t) => AXIS_LABELS[t.axis]),
-    anchors: getContents(u.id).filter((c) => c.is_anchor).map((c) => `${c.title}：${c.summary}`),
+    anchors: [] as string[],
+  });
+  const [viewerContents, targetContents] = await Promise.all([getContents(viewer.id), getContents(target.id)]);
+  const payload = (u: UserRow, v: UserVectors, items: ContentRow[]) => ({
+    ...fmt(u, v),
+    anchors: items.filter((c) => c.is_anchor).map((c) => `${c.title}：${c.summary}`),
   });
   const real = await chatJSON(
     DeepMatchSchema,
     '你是「遇见」的匹配引擎。只根据提供的真实内容做判断，不得编造观点；不要输出 MBTI/灵魂伴侣等伪心理学；只输出 JSON。',
-    `用户A：${JSON.stringify(fmt(viewer, av))}\n用户B：${JSON.stringify(fmt(target, bv))}\n请判断：A 为什么可能想认识 B？B 为什么可能想认识 A？最重要的共同点（shared_ground，用轴向标签）；一个值得讨论的差异（interesting_difference）；一个两人真的聊得下去的开场问题（conversation_question，必须同时结合两人的真实内容）。`,
+    `用户A：${JSON.stringify(payload(viewer, av, viewerContents))}\n用户B：${JSON.stringify(payload(target, bv, targetContents))}\n请判断：A 为什么可能想认识 B？B 为什么可能想认识 A？最重要的共同点（shared_ground，用轴向标签）；一个值得讨论的差异（interesting_difference）；一个两人真的聊得下去的开场问题（conversation_question，必须同时结合两人的真实内容）。`,
   );
   return real ?? mock;
 }
 
 /** Content Bridge：从 target 的 Content Anchors 中选最适合 viewer 的一篇 */
-export function contentBridge(viewerId: string, targetId: string): { anchor: ContentRow; reason: string } {
-  const vv = getUserVectors(viewerId);
-  const contents = getContents(targetId);
+export async function contentBridge(viewerId: string, targetId: string): Promise<{ anchor: ContentRow; reason: string } | null> {
+  const [vv, contents] = await Promise.all([getUserVectors(viewerId), getContents(targetId)]);
   const scored = contents
     .map((c) => ({
       c,
@@ -96,6 +99,7 @@ export function contentBridge(viewerId: string, targetId: string): { anchor: Con
     .sort((a, b) => b.s - a.s);
   const best = scored[0];
   const anchor = best?.c || contents[0];
+  if (!anchor) return null;
   const shared = sharedAxes(anchor.vec, vv.value, 2);
   const reason = shared.length
     ? `你们写的是完全不同的事情，但过去都反复思考过：${shared.map((s) => s.label).join('、')}。`

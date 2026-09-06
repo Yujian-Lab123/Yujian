@@ -14,10 +14,8 @@ export interface Understanding {
   note: string;
 }
 
-export function buildUnderstanding(userId: string): Understanding {
-  const user = getUser(userId);
-  const vectors = getUserVectors(userId);
-  const contents = getContents(userId);
+export async function buildUnderstanding(userId: string): Promise<Understanding> {
+  const [user, vectors, contents] = await Promise.all([getUser(userId), getUserVectors(userId), getContents(userId)]);
   const top = topAxes(vectors.long_term, 5);
   const topics = top.map((t) => AXIS_LABELS[t.axis]);
 

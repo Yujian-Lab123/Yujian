@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { listArtifacts, listCrawlerInputs, readArtifactFile, resolveLocalAvatar } from '@/lib/profile/store';
+import { getProfileArtifact, listProfileArtifacts } from '@/lib/profile/repository';
 import ProfileExperience from './profile-experience';
 import ProfileCorner from './profile-corner';
 
@@ -12,9 +13,13 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const { name } = await searchParams;
   const root = process.cwd();
   const outDir = path.join(root, 'profile-output');
-  const artifacts = listArtifacts(outDir);
+  let databaseArtifacts = [] as Awaited<ReturnType<typeof listProfileArtifacts>>;
+  try { databaseArtifacts = await listProfileArtifacts(); } catch { /* bootstrap 前保留本地画像预览 */ }
+  const localArtifacts = listArtifacts(outDir);
+  const artifacts = [...databaseArtifacts, ...localArtifacts.filter((local) => !databaseArtifacts.some((stored) => stored.slug === local.slug))];
   const selectedSlug = name && artifacts.some((a) => a.slug === name) ? name : artifacts[0]?.slug;
-  const artifact = selectedSlug ? readArtifactFile(outDir, selectedSlug) : null;
+  let artifact = selectedSlug ? await getProfileArtifact(selectedSlug).catch(() => null) : null;
+  if (!artifact && selectedSlug) artifact = readArtifactFile(outDir, selectedSlug);
   const inputs = listCrawlerInputs(path.join(root, 'data', 'crawler'));
   const avatarSrc = selectedSlug ? resolveLocalAvatar(path.join(root, 'public'), selectedSlug) : null;
 

@@ -9,7 +9,7 @@ type Input = { file: string; name: string; count: number; timeRange: string | nu
 
 interface Job {
   id: string;
-  status: 'running' | 'done' | 'error';
+  status: 'queued' | 'running' | 'succeeded' | 'failed';
   message: string;
   progress: { stage: string; batchDone?: number; batchTotal?: number; clues?: number; cacheHits?: number; cacheTotal?: number } | null;
   slug?: string;
@@ -60,11 +60,11 @@ export default function ProfileCorner({
         const d = await r.json();
         if (d.ok) {
           setJob(d.job);
-          if (d.job.status !== 'running' && pollRef.current) {
+          if (!['queued', 'running'].includes(d.job.status) && pollRef.current) {
             clearInterval(pollRef.current);
             pollRef.current = null;
             setBusy(false);
-            if (d.job.status === 'done' && d.job.slug) {
+            if (d.job.status === 'succeeded' && d.job.slug) {
               setTimeout(() => router.push(`/profile?name=${encodeURIComponent(d.job.slug)}`), 800);
             }
           }
@@ -154,7 +154,7 @@ export default function ProfileCorner({
               {error && <p className="text-xs text-red-600">{error}</p>}
               {job && (
                 <div className="rounded-md bg-[#f7f4ee] p-2 text-xs">
-                  <p>{job.status === 'running' ? '⏳ ' : job.status === 'done' ? '✅ ' : '❌ '}{job.message}</p>
+                  <p>{['queued', 'running'].includes(job.status) ? '⏳ ' : job.status === 'succeeded' ? '✅ ' : '❌ '}{job.message}</p>
                   {job.progress?.batchTotal ? (
                     <>
                       <div className="mt-1 h-1 w-full overflow-hidden rounded bg-[#e5dfd3]">

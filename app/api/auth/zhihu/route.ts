@@ -12,6 +12,6 @@ export async function GET(req: Request) {
   const state = newOAuthState();
   recordDebug({ stage: 'authorize_started' });
   const res = NextResponse.redirect(authorizeUrl(state));
-  res.cookies.set(OAUTH_STATE_COOKIE, state, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 600 });
+  res.cookies.set(OAUTH_STATE_COOKIE, state, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 600 });
   return res;
 }

@@ -28,7 +28,7 @@ export function zhihuCredentials(): ZhihuCredentials {
 
 export function zhihuConfigured(): boolean {
   const c = zhihuCredentials();
-  return Boolean(c.appId && c.appKey && c.accessSecret && c.redirectUri);
+  return Boolean(c.appId && c.appKey && c.accessSecret && c.redirectUri && process.env.TOKEN_ENCRYPTION_KEY);
 }
 
 export function newOAuthState(): string {
@@ -83,6 +83,10 @@ export function credentialWarnings(): { code: string; message: string }[] {
   }
   if (zhihuConfigured() && !d.redirectUri?.startsWith('https://')) {
     warnings.push({ code: 'REDIRECT_NOT_HTTPS', message: '回调地址必须为公网 HTTPS，本地地址无法完成知乎登录。' });
+  }
+  const c = zhihuCredentials();
+  if (c.appId && c.appKey && c.accessSecret && c.redirectUri && !process.env.TOKEN_ENCRYPTION_KEY) {
+    warnings.push({ code: 'TOKEN_KEY_MISSING', message: '缺少 TOKEN_ENCRYPTION_KEY，OAuth token 无法安全落库。' });
   }
   return warnings;
 }

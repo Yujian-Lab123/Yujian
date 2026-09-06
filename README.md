@@ -3,18 +3,19 @@
 > 发现一个值得聊一句的人。
 > 知乎已经帮你发现值得看的内容；遇见帮你通过内容，发现一个值得聊一句的人。
 
-知乎 Hackathon 项目 · Web Demo。
+知乎 Hackathon 项目 · Next.js 16 + PostgreSQL 团队开发基座。
 
 ## 快速开始
 
 ```bash
-npm install
+git clone https://github.com/Yujian-Lab/Yujian.git
+cd Yujian
+npm ci
+npm run bootstrap
 npm run dev            # http://localhost:3000
-# 或生产模式
-npm run build && npm run start
 ```
 
-首次访问自动初始化 SQLite（`data/yujian.db`）并写入 10 个 Mock 用户 / 27 篇内容。
+要求 Node.js 24、Git 和 Docker Desktop。`bootstrap` 会启动 PostgreSQL、执行 Drizzle 迁移并写入 10 个 Mock 用户 / 27 篇内容；可安全重复执行。Next.js 与画像 Worker 由 `npm run dev` 同时启动。
 点击「使用知乎继续」即可以演示身份（江树 · 产品经理）体验完整闭环：
 
 Landing → AI 理解 → 推荐（今天想先给你看一篇东西）→ 看看 TA 怎么想 → 我有点想认识 TA → 双向成功 → 已遇见。
@@ -30,12 +31,26 @@ Landing → AI 理解 → 推荐（今天想先给你看一篇东西）→ 看�
 
 ## 文档
 
+- `CONTRIBUTING.md`：分支、PR、Agent 与安全规范
+- `docs/DEVELOPMENT.md`：Clone、启动、测试和故障排查
+- `docs/OWNERSHIP.md`：A/B/C/D 的文件所有权与共享冻结区
+- `docs/workstreams/`：四名成员各自的交付和验收边界
+- `docs/API_CONTRACTS.md`：跨模块稳定接口
 - `IMPLEMENTATION_PLAN.md`：能力清单与 Phase 计划
 - `docs/ARCHITECTURE.md`：技术架构与安全边界
 - `docs/MATCHING.md`：匹配算法与 Demo 复现
 - `docs/PRODUCT.md`：产品逻辑
 - `docs/PROFILE_ENGINE.md`：人物画像分析引擎（爬虫验证线：六维画像 + 证据可溯）
 - `总体概览.txt`：产品总说明（上游需求）
+
+## 质量门
+
+```bash
+npm run check
+npm run audit:prod
+```
+
+所有 PR 必须通过 lint、typecheck、test 和 build。禁止提交 `.env.local`、Cookie、`browser_data/`、爬虫数据或画像产物。
 
 ## 演示提示
 

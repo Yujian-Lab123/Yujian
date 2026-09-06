@@ -8,12 +8,12 @@
 | --- | --- | --- |
 | 知乎 Hackathon 官方资料 | ✅ 已有 | `zhihu-hackathon/`：SKILL、OAuth 边界、部署凭证、hello-world 脚手架（含官方 OAuth 协议实现） |
 | 产品总说明 | ✅ 已有 | `总体概览.txt`（62 节完整产品/算法/工程要求） |
-| Web 全栈骨架 | ✅ 本轮完成 | Next.js 15 + TS + Tailwind，8 个页面 + 12 个 API |
-| 存储层 | ✅ 本轮完成 | `node:sqlite`（零依赖），schema 覆盖 users/contents/user_vectors/current_states/recommendations/feedback/connection_intents/connections/sessions |
+| Web 全栈骨架 | ✅ 本轮完成 | Next.js 16 + TS + Tailwind，页面与 Route Handlers 同仓 |
+| 存储层 | ✅ 团队基座 | PostgreSQL 17 + Drizzle，迁移、索引、唯一约束与幂等 Mock 种子 |
 | Mock 种子 | ✅ 本轮完成 | 10 个不同职业用户、27 篇内容、16 维概念轴人工标注向量 |
 | 匹配管线 | ✅ 本轮完成 | Hard Filter → 多维召回 → 启发式粗排 → Mock Rerank → Deep Match（LLM 可选）→ Content/Conversation Bridge → 此刻遇见置顶 |
 | 双向确认 | ✅ 本轮完成 | want-to-meet → pending / mutual；Mock 用户可 auto_reciprocate |
-| Provider 抽象 | ✅ 本轮完成 | LLM（OpenAI 兼容，mimo/DashScope/DeepSeek 可换）；Embedding/Rerank 预留接口 |
+| Provider 抽象 | ✅ 本轮完成 | LLM（当前 Qwen 分层）；`ContentSource` 隔离爬虫与未来知乎 OAuth 数据源 |
 | P2 知乎 OAuth | ✅ 本轮完成 | RealZhihuProvider：authorize → access_token → 用户接口（双凭证头）；`/api/auth/zhihu` + `/api/auth/callback` + 脱敏诊断 `/api/auth/zhihu/status`；四个 `ZHIHU_*` 环境变量齐备后 Landing 自动切换真实登录入口。真实联调需公网 HTTPS 回调（官方边界） |
 
 ## 二、缺失能力（按 Phase 推进）

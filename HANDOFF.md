@@ -1,7 +1,7 @@
 # 遇见 · AI 交接文档
 
 > 写给下一个接手的 AI/开发者:读完这一篇 + `audit-output/PROJECT_AUDIT.md`,你就能安全上手。
-> 最后更新:2026-09-03 · 仓库:https://github.com/Nobody-sink-it/Yujian · 分支 main
+> 最后更新:2026-09-06 · 目标仓库:https://github.com/Yujian-Lab/Yujian · 分支 main
 
 ## 一、项目是什么
 
@@ -17,7 +17,7 @@ lib/
   axes.ts               16 维概念轴(Mock 匹配用;与画像引擎无关,勿混淆)
   ai/profile.ts         旧版 Mock 画像(buildUnderstanding,模板拼装,演示用)
   ai/bridge.ts          Deep Match / Content Bridge / Conversation Bridge(LLM 可选)
-  db/                   node:sqlite 存储层(users/contents/user_vectors/zhihu_identities 等表)
+  db/                   PostgreSQL + Drizzle（schema/迁移/种子/向量计算）
   providers/llm.ts      OpenAI 兼容 LLM 客户端(双 token 上限字段;LLM_CHEAP_BASE_URL 分层厂商)
   providers/zhihu.ts    知乎官方 OAuth(P2 代码完成,未实测)
   retrieval/matcher.ts  在线匹配管线(Hard Filter→召回→粗排→Rerank→DeepMatch→Bridge)
@@ -85,8 +85,8 @@ fetchZhihuContents 原样存档 zhihu_identities.raw_contents(500KB 上限)→�
 
 - **Node 24.16**:CLI 直接跑 TS(type stripping),engine 等文件用**显式 `.ts` 后缀导入**;tsconfig 已加 `allowImportingTsExtensions`,`media-crawler` 已加入 exclude(它自带 webui 的 TS 会污染检查)。
 - **Python**:系统 Anaconda 3.13.9,MediaCrawler 依赖与 playwright chromium 已装好,`python main.py --help` 可验证。**不要建 venv**,直接用系统 python。
-- **LLM**:`.env.local` 已配 MiMo(`https://api.xiaomimimo.com/v1`),`LLM_MODEL=mimo-v2.5-pro`(综合)、`LLM_CHEAP_MODEL=mimo-v2.5`(抽取)。⚠️ MiMo 是**推理模型**:输出预算含隐藏思考 token(实测小任务思考 4k+),**便宜但慢**(单人 57 篇约 20-30 分钟)。计划换 DeepSeek/通义(key 由用户申请),`.env.example` 有三家配置示例;`LLM_CHEAP_BASE_URL` 支持分层混搭(抽取走快厂、综合留强厂)。
-- **Git**:origin=github.com/Nobody-sink-it/Yujian;提交风格为中文 conventional commits(如 `feat(profile): ...`)。**绝不入库**:`.env.local`、`data/`、`media-crawler/`、`profile-output/`、`audit-output/`(均已 ignore)。GitHub 连接不稳定,克隆/推送失败先重试或确认代理。
+- **LLM**：画像抽取默认 `qwen3.7-flash`，最终汇总默认 `qwen3.8-flash`；无 Key 时使用 Mock。密钥只放 `.env.local` 或部署平台 Secret。
+- **Git**：目标 Organization 为 `Yujian-Lab`；模块所有权、Agent 边界和 PR 规则见 `CONTRIBUTING.md` 与 `docs/OWNERSHIP.md`。
 
 ## 六、验证实验进度(人工评析闭环)
 

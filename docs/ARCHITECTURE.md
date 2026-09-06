@@ -2,9 +2,9 @@
 
 ## 技术栈
 
-- **框架**：Next.js 15（App Router，TypeScript strict），前后端同仓，便于部署到 Sealos/Cloudflare 获取公网 HTTPS 回调。
+- **框架**：Next.js 16（App Router，TypeScript strict），前后端同仓，使用 Node.js Runtime 自托管。
 - **样式**：Tailwind CSS 3；双视觉系统——外蓝（知乎蓝墨，Landing/连接成功/已遇见）+ 内暖（米纸暖色，理解/推荐/我的）。
-- **存储**：`node:sqlite`（Node 24 内置，零依赖）。接口抽象保留，赛后换 PostgreSQL + pgvector 只改 `lib/db` 与 `lib/retrieval`。
+- **存储**：PostgreSQL 17 + Drizzle；本地由 Docker Compose 提供，迁移和 Mock 种子均可重复执行。
 - **AI**：OpenAI 兼容协议 adapter（当前画像验证用 Qwen；亦兼容 DashScope / DeepSeek 等）；未配置 key 时全部回退 Mock，Demo 永不崩。
 
 ## 目录
@@ -22,13 +22,17 @@ app/                  # 页面 + API Routes
   api/…               # 见下
 lib/
   axes.ts             # 16 维概念轴、问题库、核心问题库、stateVec
-  db/                 # sqlite schema + 种子 + 向量计算
+  db/                 # PostgreSQL/Drizzle schema + 种子 + 向量计算
   providers/llm.ts    # LLM adapter（chatJSON + zod 校验 + 日志）
   providers/zhihu.ts  # 真实知乎 OAuth（authorize/token/用户接口 + 脱敏诊断）
   ai/profile.ts       # 离线理解：Content Profile（explicit/inferred 区分，非人格测试）
   ai/bridge.ts        # Deep Match / Content Bridge / Conversation Bridge
   retrieval/matcher.ts# 在线匹配漏斗 + 此刻遇见
-  session.ts          # cookie 会话
+  session.ts          # 带过期与撤销能力的 cookie 会话
+scripts/
+  bootstrap.ts        # Clone 后的一键本地初始化
+  profile-worker.ts   # 数据库持久化画像任务 Worker
+drizzle/              # 受版本控制的数据库迁移（仅 C 修改）
 components/           # Nav / 水墨场景 / 头像 / 封面
 docs/                 # 架构 / 匹配 / 产品文档
 ```

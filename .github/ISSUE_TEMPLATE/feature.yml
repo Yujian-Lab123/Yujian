@@ -1,0 +1,34 @@
+name: 功能任务
+description: 一个 Issue 对应一个分支和一个可验收问题
+title: "[模块] "
+labels: [feature]
+body:
+  - type: dropdown
+    id: owner
+    attributes:
+      label: 责任模块
+      options: [A-画像产品, B-匹配产品, C-平台后端, D-发布展示]
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: 任务目标
+    validations:
+      required: true
+  - type: textarea
+    id: paths
+    attributes:
+      label: 允许修改的路径
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: 依赖接口与必须保持的行为
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+    validations:
+      required: true

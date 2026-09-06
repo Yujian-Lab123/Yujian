@@ -8,7 +8,7 @@
 ## 快速开始
 
 ```bash
-git clone https://github.com/Yujian-Lab/Yujian.git
+git clone https://github.com/Yujian-Lab123/Yujian.git
 cd Yujian
 npm ci
 npm run bootstrap

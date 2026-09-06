@@ -1,31 +1,31 @@
-# Teams 在仓库转移至 Yujian-Lab 后创建并授予访问权限。
-/app/profile/                 @Yujian-Lab/profile
-/app/me/                      @Yujian-Lab/profile
-/lib/profile/                 @Yujian-Lab/profile
-/lib/ai/profile.ts            @Yujian-Lab/profile
+# Teams 需由组织管理员在 GitHub 上创建并授予本仓库访问权限，否则下面的规则不会生效。
+/app/profile/                 @Yujian-Lab123/profile
+/app/me/                      @Yujian-Lab123/profile
+/lib/profile/                 @Yujian-Lab123/profile
+/lib/ai/profile.ts            @Yujian-Lab123/profile
 
-/app/encounter/               @Yujian-Lab/encounter
-/app/connect/                 @Yujian-Lab/encounter
-/app/connections/             @Yujian-Lab/encounter
-/app/api/encounters/          @Yujian-Lab/encounter
-/app/api/connections/         @Yujian-Lab/encounter
-/lib/retrieval/               @Yujian-Lab/encounter
-/lib/ai/bridge.ts             @Yujian-Lab/encounter
+/app/encounter/               @Yujian-Lab123/encounter
+/app/connect/                 @Yujian-Lab123/encounter
+/app/connections/             @Yujian-Lab123/encounter
+/app/api/encounters/          @Yujian-Lab123/encounter
+/app/api/connections/         @Yujian-Lab123/encounter
+/lib/retrieval/               @Yujian-Lab123/encounter
+/lib/ai/bridge.ts             @Yujian-Lab123/encounter
 
-/lib/db/                      @Yujian-Lab/platform
-/lib/providers/               @Yujian-Lab/platform
-/lib/session.ts               @Yujian-Lab/platform
-/app/api/auth/                @Yujian-Lab/platform
-/drizzle/                     @Yujian-Lab/platform
+/lib/db/                      @Yujian-Lab123/platform
+/lib/providers/               @Yujian-Lab123/platform
+/lib/session.ts               @Yujian-Lab123/platform
+/app/api/auth/                @Yujian-Lab123/platform
+/drizzle/                     @Yujian-Lab123/platform
 
-/app/page.tsx                 @Yujian-Lab/release
-/app/onboarding/              @Yujian-Lab/release
-/public/                      @Yujian-Lab/release
-/.github/                     @Yujian-Lab/release @Yujian-Lab/platform
+/app/page.tsx                 @Yujian-Lab123/release
+/app/onboarding/              @Yujian-Lab123/release
+/public/                      @Yujian-Lab123/release
+/.github/                     @Yujian-Lab123/release @Yujian-Lab123/platform
 
-/package.json                 @Yujian-Lab/platform
-/package-lock.json            @Yujian-Lab/platform
-/app/globals.css              @Yujian-Lab/release @Yujian-Lab/platform
-/components/                  @Yujian-Lab/release @Yujian-Lab/platform
-/lib/contracts/               @Yujian-Lab/platform
-/*config*                     @Yujian-Lab/platform
+/package.json                 @Yujian-Lab123/platform
+/package-lock.json            @Yujian-Lab123/platform
+/app/globals.css              @Yujian-Lab123/release @Yujian-Lab123/platform
+/components/                  @Yujian-Lab123/release @Yujian-Lab123/platform
+/lib/contracts/               @Yujian-Lab123/platform
+/*config*                     @Yujian-Lab123/platform

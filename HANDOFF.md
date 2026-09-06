@@ -1,7 +1,7 @@
 # 遇见 · AI 交接文档
 
 > 写给下一个接手的 AI/开发者:读完这一篇 + `audit-output/PROJECT_AUDIT.md`,你就能安全上手。
-> 最后更新:2026-09-06 · 目标仓库:https://github.com/Yujian-Lab/Yujian · 分支 main
+> 最后更新:2026-09-06 · 目标仓库:https://github.com/Yujian-Lab123/Yujian · 分支 main
 
 ## 一、项目是什么
 
@@ -69,7 +69,7 @@ fetchZhihuContents 原样存档 zhihu_identities.raw_contents(500KB 上限)→�
 - **Node 24.16**:CLI 直接跑 TS(type stripping),engine 等文件用**显式 `.ts` 后缀导入**;tsconfig 已加 `allowImportingTsExtensions`,`media-crawler` 已加入 exclude(它自带 webui 的 TS 会污染检查)。
 - **Python**:系统 Anaconda 3.13.9,MediaCrawler 依赖与 playwright chromium 已装好,`python main.py --help` 可验证。**不要建 venv**,直接用系统 python。
 - **LLM**：画像抽取默认 `qwen3.7-flash`，最终汇总默认 `qwen3.8-flash`；无 Key 时使用 Mock。密钥只放 `.env.local` 或部署平台 Secret。
-- **Git**：目标 Organization 为 `Yujian-Lab`；模块所有权、Agent 边界和 PR 规则见 `CONTRIBUTING.md` 与 `docs/OWNERSHIP.md`。
+- **Git**：目标 Organization 为 `Yujian-Lab123`；模块所有权、Agent 边界和 PR 规则见 `CONTRIBUTING.md` 与 `docs/OWNERSHIP.md`。
 
 ## 六、验证实验进度(人工评析闭环)
 

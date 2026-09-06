@@ -11,31 +11,14 @@
 
 ## 二、仓库地图
 
-```
-app/                    Next.js 15 页面 + API(演示闭环:landing/onboarding/encounter/connections/me)
-lib/
-  axes.ts               16 维概念轴(Mock 匹配用;与画像引擎无关,勿混淆)
-  ai/profile.ts         旧版 Mock 画像(buildUnderstanding,模板拼装,演示用)
-  ai/bridge.ts          Deep Match / Content Bridge / Conversation Bridge(LLM 可选)
-  db/                   PostgreSQL + Drizzle（schema/迁移/种子/向量计算）
-  providers/llm.ts      OpenAI 兼容 LLM 客户端(双 token 上限字段;LLM_CHEAP_BASE_URL 分层厂商)
-  providers/zhihu.ts    知乎官方 OAuth(P2 代码完成,未实测)
-  retrieval/matcher.ts  在线匹配管线(Hard Filter→召回→粗排→Rerank→DeepMatch→Bridge)
-  profile/              ★ 人物画像分析引擎(本次验证线的核心,见四)
-scripts/
-  analyze-profile.ts    画像 CLI(--input/--name/--author/--peek/--max-items/--max-chars/--cache)
-  convert-crawler.mjs   MediaCrawler jsonl → 画像输入(--crawl 一键抓取)
-  fixtures/lin-yizhou.json  虚构人物测试样例(冒烟/回归用)
-media-crawler/          MediaCrawler 副本(gitignore,非商业许可)
-  config/zhihu_config.py  ★ ZHIHU_CREATOR_URL_LIST——大V主页网址粘贴处
-  media_platform/zhihu/core.py  改过一处:文章抓取已解开(搜「遇见 适配」注释)
-data/                   sqlite 库 + crawler 输入 JSON(gitignore)
-profile-output/         画像产物 .profile.json/.report.md/.candidates.json(gitignore)
-audit-output/           上次全项目审计报告+截图(gitignore,先读它)
-docs/                   ARCHITECTURE / MATCHING / PRODUCT / PROFILE_ENGINE
-用户画像.txt            画像引擎的规格来源(六维/压缩漏斗/证据规则/JSON Schema)
-总体概览.txt            上游产品总说明(62 节)
-```
+完整目录导览见 **`docs/STRUCTURE.md`**,以它为准,这里不再重复。下面是只有本篇才说的几点:
+
+- `lib/axes.ts` 的 16 维概念轴是**旧 Mock 匹配**在用的,和画像引擎的六维**不是一回事**,别混淆;
+- `lib/ai/profile.ts` 是演示用模板画像(`buildUnderstanding`),真引擎在 `lib/profile/`;
+- MediaCrawler 配置入口:`media-crawler/config/zhihu_config.py` 的 `ZHIHU_CREATOR_URL_LIST`(大V主页网址粘贴处);`media_platform/zhihu/core.py` 改过一处,搜「遇见 适配」注释;
+- 虚构人物测试样例:`scripts/fixtures/lin-yizhou.json`(冒烟/回归用);
+- `用户画像.txt` 是画像引擎的规格来源(六维/压缩漏斗/证据规则/JSON Schema),`总体概览.txt` 是上游产品总说明(62 节);
+- `audit-output/` 是上次全项目审计报告+截图(gitignore),接手时先读它。
 
 ## 三、两条数据管线现状
 

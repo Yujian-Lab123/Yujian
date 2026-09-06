@@ -33,6 +33,7 @@ Landing → AI 理解 → 推荐（今天想先给你看一篇东西）→ 看�
 
 - `CONTRIBUTING.md`：分支、PR、Agent 与安全规范
 - `docs/DEVELOPMENT.md`：Clone、启动、测试和故障排查
+- `docs/STRUCTURE.md`：目录导览与新成员阅读顺序
 - `docs/OWNERSHIP.md`：A/B/C/D 的文件所有权与共享冻结区
 - `docs/workstreams/`：四名成员各自的交付和验收边界
 - `docs/API_CONTRACTS.md`：跨模块稳定接口

@@ -1,6 +1,6 @@
 # 遇见 · 团队协作规范
 
-开始任务前先阅读 `AGENTS.md`、`docs/OWNERSHIP.md`、`docs/DEVELOPMENT.md` 及自己的 `docs/workstreams/*.md`。
+开始任务前先阅读 `AGENTS.md`、`docs/OWNERSHIP.md`、`docs/DEVELOPMENT.md` 及自己的 `docs/workstreams/*.md`。第一次接触这个仓库的，先看 `docs/STRUCTURE.md` 了解目录。
 
 ## 开发流程
 

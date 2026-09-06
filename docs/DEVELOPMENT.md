@@ -26,6 +26,8 @@ npm run dev
 
 `npm run dev` 同时启动 Next.js 和画像 Worker。未配置 LLM/OAuth 时使用 Mock；新成员不需要任何密钥即可开发。
 
+目录结构和「从哪里读起」见 `docs/STRUCTURE.md`。
+
 ## 常用命令
 
 ```bash

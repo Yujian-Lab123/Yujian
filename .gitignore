@@ -1,4 +1,5 @@
 node_modules/
+.npm-cache/
 .next/
 out/
 data/*.db
@@ -15,3 +16,5 @@ profile-output/
 scripts/fixtures/*.local.json
 media-crawler/
 data/crawler/
+browser_data/
+.workbuddy/

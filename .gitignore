@@ -9,6 +9,7 @@ data/*.db-wal
 .env
 .env.local
 .env.*.local
+.env.prod
 *.tsbuildinfo
 next-env.d.ts
 audit-output/

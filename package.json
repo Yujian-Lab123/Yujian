@@ -15,6 +15,8 @@
     "dev:worker": "tsx watch scripts/profile-worker.ts",
     "build": "next build",
     "start": "next start",
+    "start:worker": "tsx scripts/profile-worker.ts",
+    "start:all": "concurrently -n web,worker -c blue,magenta \"npm:start\" \"npm:start:worker\"",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

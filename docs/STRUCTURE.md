@@ -60,7 +60,7 @@
 
 ## 文档 `docs/`
 
-`ARCHITECTURE`、`MATCHING`、`PROFILE_ENGINE`、`PRODUCT` 讲系统怎么设计；`API_CONTRACTS` 是跨模块稳定接口；`OWNERSHIP` + `workstreams/A-PRESENT-SELF.md`、`B-CONTEXTUAL-PERSONA.md`、`C-ENCOUNTER.md`、`D-PRODUCT-INTEGRATION.md` 讲谁改什么；`DEVELOPMENT` 讲怎么跑；`SECURITY` 是生产依赖基线。
+`ARCHITECTURE`、`MATCHING`、`PROFILE_ENGINE`、`PRODUCT` 讲系统怎么设计；`API_CONTRACTS` 是跨模块稳定接口；`OWNERSHIP` + `workstreams/A-PRESENT-SELF.md`、`C-ENCOUNTER.md`、`D-PRODUCT-INTEGRATION.md` 讲三名成员各自改什么；`GITHUB_ADMIN_SETUP` 讲 Team 与 main 合并权限怎么实际配置；`DEVELOPMENT` 讲怎么跑；`SECURITY` 是生产依赖基线。
 
 ## 不入仓的数据
 

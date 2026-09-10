@@ -1,12 +1,12 @@
-# Teams 需由组织管理员在 GitHub 上创建并授予本仓库访问权限，否则下面的规则不会生效。
-/app/profile/                 @Yujian-Lab123/release
-/app/side/                    @Yujian-Lab123/release
+# 三人协作：A=profile，C=encounter，D=platform。Team 需由组织管理员创建并授予仓库访问权限。
+/app/profile/                 @Yujian-Lab123/platform
+/app/side/                    @Yujian-Lab123/platform
 /app/me/                      @Yujian-Lab123/profile
 /app/api/me/                  @Yujian-Lab123/profile
 /lib/useMe.ts                 @Yujian-Lab123/profile
 /lib/profile/                 @Yujian-Lab123/platform
 /lib/ai/profile.ts            @Yujian-Lab123/platform
-/lib/contextual-persona.ts    @Yujian-Lab123/release
+/lib/contextual-persona.ts    @Yujian-Lab123/platform
 
 /app/api/profile/             @Yujian-Lab123/platform
 
@@ -24,14 +24,14 @@
 /app/api/auth/                @Yujian-Lab123/platform
 /drizzle/                     @Yujian-Lab123/platform
 
-/app/page.tsx                 @Yujian-Lab123/release
-/app/onboarding/              @Yujian-Lab123/release
-/public/                      @Yujian-Lab123/release
-/.github/                     @Yujian-Lab123/release @Yujian-Lab123/platform
+/app/page.tsx                 @Yujian-Lab123/platform
+/app/onboarding/              @Yujian-Lab123/platform
+/public/                      @Yujian-Lab123/platform
+/.github/                     @Yujian-Lab123/platform
 
 /package.json                 @Yujian-Lab123/platform
 /package-lock.json            @Yujian-Lab123/platform
-/app/globals.css              @Yujian-Lab123/release @Yujian-Lab123/platform
-/components/                  @Yujian-Lab123/release @Yujian-Lab123/platform
+/app/globals.css              @Yujian-Lab123/platform
+/components/                  @Yujian-Lab123/platform
 /lib/contracts/               @Yujian-Lab123/platform
 /*config*                     @Yujian-Lab123/platform

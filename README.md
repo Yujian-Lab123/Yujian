@@ -34,9 +34,10 @@ Landing → AI 理解 → 推荐（今天想先给你看一篇东西）→ 看�
 - `CONTRIBUTING.md`：分支、PR、Agent 与安全规范
 - `docs/DEVELOPMENT.md`：Clone、启动、测试和故障排查
 - `docs/STRUCTURE.md`：目录导览与新成员阅读顺序
-- `docs/OWNERSHIP.md`：A/B/C/D 的文件所有权与共享冻结区
+- `docs/OWNERSHIP.md`：A/C/D 三人协作的文件所有权与共享冻结区
 - `docs/TEAM_TASKS_SIMPLE.md`：可直接发给团队的页面分工通俗版
-- `docs/workstreams/`：四名成员各自的交付和验收边界
+- `docs/workstreams/`：三名成员各自的交付和验收边界
+- `docs/GITHUB_ADMIN_SETUP.md`：Organization Team、只允许负责人合并 PR 的后台配置步骤
 - `docs/API_CONTRACTS.md`：跨模块稳定接口
 - `IMPLEMENTATION_PLAN.md`：能力清单与 Phase 计划
 - `docs/ARCHITECTURE.md`：技术架构与安全边界

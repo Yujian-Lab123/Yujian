@@ -30,7 +30,7 @@
 ## 三、本轮已完成验收（对照概览六十一节）
 
 - A 30 秒知道是什么：Landing 一句话定位 ✅
-- B 无需填资料进入：一键 Demo 登录 ✅
+- 验收项 2，无需填资料进入：一键 Demo 登录 ✅
 - C 合理 Content Profile：onboarding 四 facet + 核心问题 ✅
 - D 不同类型候选：种子覆盖摄影/户外/医学/教育/投资/文学/心理/社会学 ✅
 - E 解释为什么是 TA：shared + difference + reason ✅

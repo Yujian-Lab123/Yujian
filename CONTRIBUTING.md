@@ -5,7 +5,7 @@
 ## 开发流程
 
 1. 从 Issue 开始，确认责任角色和允许修改的路径。
-2. 从最新 `main` 创建 `feat/a-*`、`feat/b-*`、`feat/c-*` 或 `feat/d-*` 分支。
+2. 从最新 `main` 创建 `feat/a-*`、`feat/c-*` 或 `feat/d-*` 分支。
 3. 一个分支只完成一个 Issue；禁止直接开发或推送 `main`。
 4. 每天执行 `git fetch origin`，在功能分支上同步 `origin/main`。
 5. 提交前运行 `npm run check`；生产依赖变化还需运行 `npm run audit:prod`。
@@ -17,7 +17,7 @@
 
 ```text
 任务目标：
-责任角色：A / B / C / D
+责任角色：A / C / D
 允许修改的路径：
 禁止修改的共享路径：
 依赖的接口：
@@ -32,7 +32,7 @@ Agent 开始和结束前都要检查 `git status --short`。禁止修改范围�
 
 `package.json`、锁文件、数据库 Schema/迁移、全局样式、公共组件、公共契约和框架配置均为冻结区。修改必须先建独立 Issue，由对应 CODEOWNER 审核；依赖升级必须单独 PR。
 
-数据库迁移只由 C 创建。其他角色通过 Issue 描述字段和查询需求，不直接编辑 `lib/db/schema.ts` 或 `drizzle/`。
+数据库迁移只由 D 创建。A、C 通过 Issue 描述字段和查询需求，不直接编辑 `lib/db/schema.ts` 或 `drizzle/`。
 
 ## 安全红线
 

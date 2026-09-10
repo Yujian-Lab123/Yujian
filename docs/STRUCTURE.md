@@ -22,6 +22,7 @@
 | `connections/` | 已遇见 |
 | `me/` | 我的：切换演示身份、此刻状态、开关 |
 | `profile/` | 人物画像页（六维 + 证据抽屉） |
+| `side/` | 此刻侧面：长期理解与当前记录的独立并列解释 |
 | `api/auth/` | 知乎 OAuth 与 demo 登录 |
 | `api/encounters/`、`api/connections/` | 推荐、反馈、意向、连接 |
 | `api/me/`、`api/profile/` | 当前用户；画像任务创建与进度查询 |
@@ -34,6 +35,7 @@
 - **`profile/`（★ 核心）** 画像引擎：`schema.ts` 六维结构与产物类型、`prompt.ts` 两阶段提示词（改了必须 bump `PROMPT_VERSION`）、`engine.ts` 抽取 + 综合管线、`report.ts` Markdown 渲染与人工评析表、`jobs.ts` 与 `repository.ts` 任务落库与进度、`store.ts` 产物读写
 - **`retrieval/matcher.ts`** 在线匹配：Hard Filter → 召回 → 粗排 → Rerank → Deep Match → Bridge
 - **`ai/bridge.ts`** Deep Match / Content Bridge / Conversation Bridge；**`ai/profile.ts`** 是演示用的模板画像，不是真引擎
+- **`contextual-persona.ts`** 此刻侧面的纯规则解释层：不写库、不调模型，供 `/side` 展示与单元测试使用
 - **`axes.ts`** 16 维概念轴，旧 Mock 匹配在用，和画像引擎的六维**不是一回事**
 - **`useMe.ts`** 前端取当前用户的 hook
 
@@ -58,7 +60,7 @@
 
 ## 文档 `docs/`
 
-`ARCHITECTURE`、`MATCHING`、`PROFILE_ENGINE`、`PRODUCT` 讲系统怎么设计；`API_CONTRACTS` 是跨模块稳定接口；`OWNERSHIP` + `workstreams/A-PROFILE.md`、`B-ENCOUNTER.md`、`C-PLATFORM.md`、`D-RELEASE.md` 讲谁改什么；`DEVELOPMENT` 讲怎么跑；`SECURITY` 是生产依赖基线。
+`ARCHITECTURE`、`MATCHING`、`PROFILE_ENGINE`、`PRODUCT` 讲系统怎么设计；`API_CONTRACTS` 是跨模块稳定接口；`OWNERSHIP` + `workstreams/A-PRESENT-SELF.md`、`B-CONTEXTUAL-PERSONA.md`、`C-ENCOUNTER.md`、`D-PRODUCT-INTEGRATION.md` 讲谁改什么；`DEVELOPMENT` 讲怎么跑；`SECURITY` 是生产依赖基线。
 
 ## 不入仓的数据
 

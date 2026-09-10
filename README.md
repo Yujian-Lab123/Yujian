@@ -35,6 +35,7 @@ Landing → AI 理解 → 推荐（今天想先给你看一篇东西）→ 看�
 - `docs/DEVELOPMENT.md`：Clone、启动、测试和故障排查
 - `docs/STRUCTURE.md`：目录导览与新成员阅读顺序
 - `docs/OWNERSHIP.md`：A/B/C/D 的文件所有权与共享冻结区
+- `docs/TEAM_TASKS_SIMPLE.md`：可直接发给团队的页面分工通俗版
 - `docs/workstreams/`：四名成员各自的交付和验收边界
 - `docs/API_CONTRACTS.md`：跨模块稳定接口
 - `IMPLEMENTATION_PLAN.md`：能力清单与 Phase 计划
@@ -56,4 +57,4 @@ npm run audit:prod
 ## 演示提示
 
 - 「我的」页可切换演示身份、写此刻状态（触发「此刻遇见」置顶）、开关遇见。
-- Demo A：江树首推陈默（跨主题：自由与稳定）；Demo B：写“想出去走走”→ 阿屿置顶。
+- Demo A：江树首推陈默（跨主题：自由与稳定）；Demo B：写“想出去走走”→ 阿屿置顶；`/side` 可查看“长期理解”和“此刻记录”并列的侧面解释。

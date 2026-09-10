@@ -2,6 +2,8 @@
 
 Before editing, read `CONTRIBUTING.md`, `docs/OWNERSHIP.md`, and the assigned file in `docs/workstreams/`.
 
+当前按三名实际成员协作：A 负责 Present Self，C 负责 Encounter + Matching，D 负责 Side、长期画像、共享平台与集成。不得再把不存在的 B 作为任务角色或审批人。
+
 - Only edit paths explicitly allowed by the Issue or task prompt.
 - Treat `package*.json`, framework config, `app/globals.css`, `components/**`, `lib/contracts/**`, `lib/db/schema.ts`, `drizzle/**`, `.env.example`, and `.github/**` as frozen shared files.
 - Do not install dependencies, generate migrations, format the whole repository, or refactor adjacent modules without a dedicated Issue and CODEOWNER approval.

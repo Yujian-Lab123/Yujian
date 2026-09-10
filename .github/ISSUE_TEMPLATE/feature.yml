@@ -7,7 +7,7 @@ body:
     id: owner
     attributes:
       label: 责任模块
-      options: [A-画像产品, B-匹配产品, C-平台后端, D-发布展示]
+      options: [A-Present Self, C-Encounter + Matching, D-产品总控 / Side / 平台]
     validations:
       required: true
   - type: textarea

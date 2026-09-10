@@ -21,6 +21,12 @@
 
 `GET /api/health` 返回 Web、PostgreSQL、画像 Worker 状态；数据库或 Worker 不健康时 HTTP 503。
 
+## 此刻侧面（V1）
+
+- 页面路由为 `/side`；它只消费既有的 `GET /api/me` 返回的 `currentState` 与 `understanding`，不新增接口、表或模型调用。
+- 纯规则层位于 `lib/contextual-persona.ts`，将长期理解和一次此刻记录**并列解释**；不得把一次状态推断成长期人格结论。
+- 当前状态的原文仅向本人返回。匹配模块如需使用，只能消费现有的 `current` 结构化向量信号，不得在推荐、详情或日志中回显原文。
+
 ## 兼容规则
 
 - 前端当前使用的 snake_case 展示字段暂不重命名。

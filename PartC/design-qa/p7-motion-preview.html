@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>遇见 · P7 动效演示</title>
+  <style>
+    :root { color-scheme: light; --paper:#faf6ee; --paper-deep:#e9dfc9; --sumi:#262319; --muted:#6b665a; --gold:#a9834a; --blue:#16337f; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100dvh; color:var(--sumi); font-family:"PingFang SC","Microsoft YaHei",sans-serif; background:linear-gradient(rgba(250,246,238,.76),rgba(250,246,238,.9)),url('/public/images/profile/ink-landscape-bg-v1.png') center top/cover fixed; }
+    button { font:inherit; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:18px clamp(18px,4vw,52px); border-bottom:1px solid rgba(169,131,74,.16); background:rgba(253,251,247,.66); backdrop-filter:blur(10px); }
+    .logo { font-family:"Songti SC",STSong,serif; font-size:27px; font-weight:700; letter-spacing:.18em; }
+    .preview-label { color:#8a8578; font-size:12px; letter-spacing:.1em; }
+    .tabs { position:relative; z-index:20; display:flex; justify-content:center; gap:8px; padding:24px 16px 0; }
+    .tabs button { min-height:42px; border:1px solid rgba(169,131,74,.24); border-radius:999px; background:rgba(255,255,255,.56); padding:8px 18px; color:var(--muted); cursor:pointer; transition:.2s; }
+    .tabs button.active { border-color:var(--gold); background:var(--sumi); color:#fffaf0; box-shadow:0 8px 22px rgba(38,35,25,.16); }
+    main { position:relative; width:min(1050px,100%); min-height:660px; margin:0 auto; padding:42px 24px 80px; }
+    .view { display:none; }
+    .view.active { display:block; animation:paperReveal .58s cubic-bezier(.2,.72,.28,1) both; }
+    .eyebrow { color:var(--gold); font-size:12px; letter-spacing:.24em; text-align:center; }
+    h1,h2,.serif { font-family:"Songti SC",STSong,serif; font-weight:500; }
+    h1 { margin:14px auto 0; font-size:clamp(34px,5vw,54px); line-height:1.24; text-align:center; }
+    .sub { margin:14px auto 0; color:var(--muted); line-height:1.8; text-align:center; }
+    .card { border:1px solid rgba(217,201,168,.7); border-radius:24px; background:rgba(253,251,247,.82); box-shadow:0 18px 60px rgba(76,60,30,.1); backdrop-filter:blur(9px); }
+
+    .loading-card { width:min(500px,100%); margin:34px auto 0; padding:24px; }
+    .ink-stage { position:relative; height:170px; overflow:hidden; border-bottom:1px solid rgba(169,131,74,.18); isolation:isolate; }
+    .ink-stage svg { position:absolute; inset:0; width:100%; height:100%; }
+    .mountain { fill:none; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:610; animation:drawInk 2.8s ease-in-out infinite alternate; }
+    .mountain.back { stroke:rgba(107,102,90,.38); stroke-width:20; filter:blur(5px); }
+    .mountain.front { stroke:rgba(58,54,44,.52); stroke-width:9; filter:blur(2px); animation-delay:.18s; }
+    .river { fill:none; stroke:rgba(169,131,74,.68); stroke-width:2; stroke-linecap:round; stroke-dasharray:330; animation:drawInk 2.2s .55s ease-in-out infinite alternate; }
+    .seal { position:absolute; left:50%; top:48%; display:grid; width:42px; height:42px; place-items:center; border-radius:4px; background:rgba(140,106,57,.92); color:#fffaf0; font-family:"Songti SC",serif; transform:translate(-50%,-50%) rotate(-3deg); box-shadow:0 5px 18px rgba(76,60,30,.17); }
+    .seal::before { content:""; position:absolute; inset:-17px; border:1px solid rgba(169,131,74,.38); border-radius:50%; animation:ripple 2.2s ease-out infinite; }
+    .load-line { display:flex; justify-content:space-between; gap:20px; margin-top:18px; color:var(--muted); font-size:14px; }
+    .progress { height:2px; margin-top:11px; overflow:hidden; background:rgba(217,201,168,.55); }
+    .progress i { display:block; width:0; height:100%; background:linear-gradient(90deg,#d9c9a8,#a9834a); transition:width .5s; }
+    .steps { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:22px; padding:0; list-style:none; }
+    .steps li { display:flex; align-items:center; gap:7px; color:#aaa396; font-size:13px; }
+    .steps b { display:grid; width:22px; height:22px; place-items:center; border:1px solid #d9c9a8; border-radius:50%; color:transparent; }
+    .steps li.done { color:#4c483d; }
+    .steps li.done b { border-color:var(--gold); background:var(--gold); color:white; animation:stamp .35s both; }
+
+    .recommend-wrap { display:grid; grid-template-columns:minmax(0,1fr) 285px; gap:22px; margin-top:30px; transform-origin:50% 10%; }
+    .recommend-wrap.leaving { animation:paperFold .3s ease-in both; }
+    .recommend-wrap.entering { animation:paperReveal .55s ease-out both; }
+    .article-card { padding:28px; }
+    .article-top { display:grid; grid-template-columns:180px 1fr; gap:25px; }
+    .cover { position:relative; min-height:205px; overflow:hidden; border-radius:17px; background:linear-gradient(155deg,#f3ecdf,#d9c9a8); }
+    .cover::before { content:""; position:absolute; left:-10%; right:-10%; bottom:-7%; height:57%; border-radius:50% 55% 0 0; background:rgba(107,102,90,.32); transform:rotate(-5deg); }
+    .cover::after { content:""; position:absolute; width:52px; height:52px; right:24px; top:24px; border-radius:50%; background:rgba(255,255,255,.45); }
+    h2 { margin:0; font-size:28px; line-height:1.42; }
+    .meta { margin-top:8px; color:#8a8578; font-size:12px; }
+    .excerpt { margin-top:19px; color:#4c483d; font-size:14px; line-height:1.9; }
+    .summary { margin-top:16px; border-radius:14px; background:rgba(243,236,223,.82); padding:15px; color:#6b665a; font-size:13px; line-height:1.75; }
+    .reason { margin-top:24px; border-top:1px solid rgba(217,201,168,.6); padding-top:20px; color:#4c483d; line-height:1.8; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:13px; }
+    .chip { border:1px solid rgba(169,131,74,.24); border-radius:999px; background:rgba(243,236,223,.7); padding:5px 10px; color:#8c6a39; font-size:12px; }
+    .sidebar { display:grid; align-content:start; gap:16px; }
+    .side-card { padding:22px; }
+    .side-card p { color:var(--muted); font-size:13px; line-height:1.75; }
+    .side-card strong { font-family:"Songti SC",serif; font-size:18px; line-height:1.6; }
+    .primary { display:inline-flex; min-height:48px; align-items:center; justify-content:center; border:0; border-radius:999px; background:var(--sumi); padding:10px 28px; color:#fffaf0; cursor:pointer; box-shadow:0 10px 24px rgba(38,35,25,.18); }
+    .article-actions { display:flex; align-items:center; justify-content:center; gap:12px; margin-top:23px; }
+    .quiet { min-height:44px; border:1px solid rgba(169,131,74,.28); border-radius:999px; background:transparent; padding:8px 18px; color:var(--gold); cursor:pointer; }
+
+    .success-shell { overflow:hidden; padding:38px clamp(22px,5vw,60px) 44px; border-color:rgba(22,51,127,.13); background:rgba(255,255,255,.8); }
+    .success-mark { position:relative; display:grid; grid-template-columns:54px 150px 54px; align-items:center; justify-content:center; margin:0 auto 14px; }
+    .person-dot { z-index:1; display:grid; width:54px; height:54px; place-items:center; border-radius:50%; background:linear-gradient(145deg,#e2ebfd,#8fb0f2); color:white; font-family:"Songti SC",serif; box-shadow:0 7px 20px rgba(13,27,62,.14); }
+    .person-dot:first-child { animation:arriveLeft .8s both; }
+    .person-dot:last-child { animation:arriveRight .8s both; }
+    .success-mark svg { width:100%; overflow:visible; }
+    .connect-path { fill:none; stroke:var(--gold); stroke-width:1.8; stroke-linecap:round; stroke-dasharray:160; stroke-dashoffset:160; animation:drawConnection .95s .5s ease-out forwards; }
+    .success-grid { display:grid; grid-template-columns:1fr 1.25fr 1fr; gap:34px; align-items:start; margin-top:36px; }
+    .portrait { display:grid; justify-items:center; text-align:center; }
+    .avatar { display:grid; width:100px; height:100px; place-items:center; border-radius:50%; background:radial-gradient(circle at 35% 30%,#dfe9ff,#9db8ee 48%,#35549b); color:white; font:38px "Songti SC",serif; }
+    .portrait strong { margin-top:13px; color:#0d1b3e; font:22px "Songti SC",serif; }
+    .portrait small { margin-top:7px; color:#6b665a; }
+    .bridge { border-radius:18px; background:rgba(226,235,253,.58); padding:22px; text-align:center; }
+    .bridge p { margin:10px 0 0; color:#122a68; font:18px/1.8 "Songti SC",serif; }
+    .success-actions { display:flex; justify-content:center; gap:10px; margin-top:34px; }
+
+    @keyframes drawInk { 0% { stroke-dashoffset:610; opacity:.18; } 58%,100% { stroke-dashoffset:0; opacity:1; } }
+    @keyframes ripple { from { opacity:.7; transform:scale(.6); } to { opacity:0; transform:scale(1.7); } }
+    @keyframes stamp { from { opacity:0; transform:scale(1.5) rotate(8deg); } to { opacity:1; transform:none; } }
+    @keyframes paperReveal { from { opacity:0; filter:blur(7px); transform:translateY(17px) scale(.987); } to { opacity:1; filter:blur(0); transform:none; } }
+    @keyframes paperFold { to { opacity:0; filter:blur(5px); transform:translateY(-15px) scale(.987); } }
+    @keyframes arriveLeft { from { opacity:0; filter:blur(5px); transform:translateX(-48px) scale(.8); } to { opacity:1; transform:none; } }
+    @keyframes arriveRight { from { opacity:0; filter:blur(5px); transform:translateX(48px) scale(.8); } to { opacity:1; transform:none; } }
+    @keyframes drawConnection { to { stroke-dashoffset:0; } }
+
+    @media (max-width:760px) {
+      header { padding:14px 16px; }
+      .preview-label { display:none; }
+      .tabs { overflow-x:auto; justify-content:flex-start; }
+      .tabs button { flex:0 0 auto; }
+      main { padding:30px 16px 64px; }
+      .steps { grid-template-columns:repeat(2,1fr); }
+      .recommend-wrap { grid-template-columns:1fr; }
+      .article-top { grid-template-columns:1fr; }
+      .cover { min-height:160px; }
+      .success-grid { grid-template-columns:1fr 1fr; gap:24px 10px; }
+      .bridge { grid-column:1/-1; grid-row:2; }
+      .success-actions { flex-direction:column; }
+      .success-actions button { width:100%; }
+    }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; transition:none!important; } .mountain,.river,.connect-path { stroke-dashoffset:0; } }
+  </style>
+</head>
+<body>
+  <header><div class="logo">遇见</div><div class="preview-label">P7 可交互演示 · 本地 Mock · 不连接 API</div></header>
+  <nav class="tabs" aria-label="演示场景">
+    <button class="active" data-view="loading">1 · 水墨理解</button>
+    <button data-view="recommend">2 · 卡片转场</button>
+    <button data-view="success">3 · 双向成功</button>
+  </nav>
+  <main>
+    <section id="loading" class="view active">
+      <div class="eyebrow">遇 见 · 正 在 理 解</div>
+      <h1>你不需要重新写一份自我介绍</h1>
+      <p class="sub">你过去留下的那些东西，本身就是。</p>
+      <div class="card loading-card">
+        <div class="ink-stage" aria-hidden="true">
+          <svg viewBox="0 0 440 170" fill="none">
+            <path class="mountain back" d="M-8 140 C38 118 65 62 112 103 C152 137 181 58 228 101 C270 136 299 70 346 99 C379 119 406 96 448 78" />
+            <path class="mountain front" d="M-10 158 C48 120 86 145 129 122 C174 99 198 147 244 126 C294 104 329 144 378 118 C405 104 426 112 450 97" />
+            <path class="river" d="M120 151 C180 130 232 150 300 127 C343 113 378 121 422 108" />
+          </svg>
+          <span class="seal">遇</span>
+        </div>
+        <div class="load-line"><span id="load-copy" role="status">正在理解你的回答…</span><strong id="load-percent" class="serif">0%</strong></div>
+        <div class="progress"><i id="progress"></i></div>
+        <ul class="steps"><li><b>✓</b>回答</li><li><b>✓</b>文章</li><li><b>✓</b>话题</li><li><b>✓</b>长期问题</li></ul>
+      </div>
+    </section>
+
+    <section id="recommend" class="view">
+      <div class="eyebrow">内 容 先 行 · 用 心 推 荐</div>
+      <h1>今天想先给你看一篇东西</h1>
+      <p class="sub">先看见思想，再逐渐看见写下这些文字的人。</p>
+      <div id="recommend-wrap" class="recommend-wrap">
+        <article class="card article-card">
+          <div class="article-top"><div class="cover"></div><div><h2 id="article-title"></h2><div id="article-meta" class="meta"></div><p id="article-excerpt" class="excerpt"></p><div id="article-summary" class="summary"></div></div></div>
+          <div class="reason"><strong>为什么给你看？</strong><div id="article-reason"></div><div id="article-chips" class="chips"></div></div>
+          <div class="article-actions"><button class="primary">看看 TA 怎么想</button><button id="next-card" class="quiet">下一篇 →</button></div>
+        </article>
+        <aside class="sidebar"><div class="card side-card"><div class="eyebrow" style="text-align:left">有意思的不同</div><p id="article-difference"></p></div><div class="card side-card"><div class="eyebrow" style="text-align:left">如果真的聊起来</div><p><strong id="article-question"></strong></p></div></aside>
+      </div>
+    </section>
+
+    <section id="success" class="view">
+      <div class="card success-shell">
+        <div class="success-mark" aria-hidden="true"><span class="person-dot">江</span><svg viewBox="0 0 150 50"><path class="connect-path" d="M4 29 C34 5 50 43 75 24 C99 7 119 40 146 18" /></svg><span class="person-dot">陈</span></div>
+        <div class="eyebrow">— 连 接 成 功 —</div><h1 style="color:#0d1b3e">你们都愿意认识彼此</h1><p class="sub">基于真实的兴趣与思考，遇见更懂彼此的对话</p>
+        <div class="success-grid"><div class="portrait"><span class="avatar">江</span><strong>江树</strong><small>产品经理 · 北京</small></div><div class="bridge"><div class="eyebrow">一个适合开始的话题</div><p>“你会怎样在稳定与自由之间，做出真正属于自己的选择？”</p><div class="chips" style="justify-content:center"><span class="chip">长期选择</span><span class="chip">自主决定</span></div></div><div class="portrait"><span class="avatar">陈</span><strong>陈默</strong><small>摄影师 · 上海</small></div></div>
+        <div class="success-actions"><button class="quiet">去 TA 的知乎主页</button><button class="quiet">＋ 关注 TA</button><button class="primary">开始交流</button></div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const articles = [
+      { title:'自由职业第三年：关于收入不稳定的诚实回答', meta:'4,286 字 · 9 分钟阅读', excerpt:'“我后来才明白，真正需要排序的不是稳定和自由，而是哪些代价愿意由自己承担。”', summary:'TA 记录了离开大厂后的第三年：收入更波动，但每一次选择都更接近自己认可的生活。', reason:'你们写的是不同的事情，却都反复思考过：稳定与自由究竟应该怎么排序？', chips:['长期选择','自主决定','成功标准'], difference:'TA 更愿意承担短期不确定性，而你更习惯先建立可持续的结构。', question:'如果安全感可以自己建立，你最想先改变哪一个选择？' },
+      { title:'我为什么没有留在大厂', meta:'3,120 字 · 7 分钟阅读', excerpt:'“所谓正确答案，有时只是很多人走过，不等于它属于你。”', summary:'一次关于职业路径、外部评价和个人节奏的诚实复盘。', reason:'你们都在认真寻找一种不完全由外界定义的生活方式。', chips:['职业路径','个人节奏','长期主义'], difference:'你更关注系统如何长期运转，TA 更相信先迈出那一步。', question:'哪一个看起来正确的答案，曾经让你最犹豫？' },
+      { title:'一次西藏旅行：在海拔五千米想通的事', meta:'2,760 字 · 6 分钟阅读', excerpt:'“走得足够远以后，我终于听见了那个一直被日常盖住的问题。”', summary:'旅行不是逃离，而是重新辨认自己真正看重的东西。', reason:'你们都把独处看作整理问题的方法，而不是与世界断开。', chips:['独处','重新选择','真实体验'], difference:'TA 从身体经验找到答案，你更常从写作和推演开始。', question:'最近有什么问题，只有离开熟悉环境才能想明白？' }
+    ];
+    let articleIndex = 0;
+    function renderArticle() { const a=articles[articleIndex]; document.querySelector('#article-title').textContent=a.title; document.querySelector('#article-meta').textContent=a.meta; document.querySelector('#article-excerpt').textContent=a.excerpt; document.querySelector('#article-summary').textContent='AI 总结 · '+a.summary; document.querySelector('#article-reason').textContent=a.reason; document.querySelector('#article-difference').textContent=a.difference; document.querySelector('#article-question').textContent='“'+a.question+'”'; document.querySelector('#article-chips').innerHTML=a.chips.map(x=>`<span class="chip">✦ ${x}</span>`).join(''); }
+    renderArticle();
+    document.querySelector('#next-card').addEventListener('click',()=>{ const wrap=document.querySelector('#recommend-wrap'); wrap.className='recommend-wrap leaving'; setTimeout(()=>{ articleIndex=(articleIndex+1)%articles.length; renderArticle(); wrap.className='recommend-wrap entering'; },300); });
+    document.querySelectorAll('.tabs button').forEach(button=>button.addEventListener('click',()=>{ document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.view').forEach(x=>x.classList.remove('active')); button.classList.add('active'); document.querySelector('#'+button.dataset.view).classList.add('active'); }));
+    const stepNames=['回答','文章','话题','长期问题']; let loadingStep=0;
+    function advanceLoading(){ loadingStep=(loadingStep+1)%5; const value=loadingStep*25; document.querySelector('#progress').style.width=value+'%'; document.querySelector('#load-percent').textContent=value+'%'; document.querySelectorAll('.steps li').forEach((x,i)=>x.classList.toggle('done',i<loadingStep)); document.querySelector('#load-copy').textContent=loadingStep<4?'正在理解你的'+stepNames[loadingStep]+'…':'正在把线索整理成一幅完整的你…'; }
+    setInterval(advanceLoading,900); advanceLoading();
+  </script>
+</body>
+</html>

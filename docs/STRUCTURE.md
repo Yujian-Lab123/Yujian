@@ -22,7 +22,7 @@
 | `connections/` | 已遇见 |
 | `me/` | 我的：切换演示身份、此刻状态、开关 |
 | `profile/` | 人物画像页（六维 + 证据抽屉） |
-| `side/` | 此刻侧面：长期理解与当前记录的独立并列解释 |
+| `side/` | 侧面管理：创建、选择和控制不同语境下的自己如何参与相遇 |
 | `api/auth/` | 知乎 OAuth 与 demo 登录 |
 | `api/encounters/`、`api/connections/` | 推荐、反馈、意向、连接 |
 | `api/me/`、`api/profile/` | 当前用户；画像任务创建与进度查询 |

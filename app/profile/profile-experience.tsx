@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowSquareOutIcon,
-  BellSimpleIcon,
+  CaretDownIcon,
   CaretRightIcon,
   ChatCircleDotsIcon,
   ClockIcon,
@@ -59,7 +59,13 @@ const BASE_LAYOUT: MapLayout = {
   canvasHeight: 1020,
 };
 
-const navItems = [['个人', 'overview'], ['代表内容', 'works'], ['时间线', 'trajectory'], ['关于遇见', 'connect']] as const;
+const productNav = [
+  ['个人', '/profile'],
+  ['此刻', '/me'],
+  ['侧面', '/side'],
+  ['遇见', '/encounter'],
+  ['关于遇见', '/'],
+] as const;
 
 function range(from?: string, to?: string) { return [from?.slice(0, 4), to?.slice(0, 4)].filter(Boolean).join('–'); }
 function short(value: string, length: number) { return value.length > length ? `${value.slice(0, length)}…` : value; }
@@ -102,6 +108,66 @@ function DimensionTitle({ no, title, note }: { no: string; title: string; note: 
   return <div className="reference-dimension-title"><b>{no}</b><span><strong>{title}</strong><small>{note}</small></span></div>;
 }
 
+function ProfileHeader({ query, onQueryChange }: { query: string; onQueryChange: (value: string) => void }) {
+  return (
+    <header className="relative z-30 border-b border-[#b7a98e]/20 bg-[#fbf8f1]/90 backdrop-blur-md">
+      <div className="mx-auto flex min-h-[74px] max-w-[1280px] items-center gap-8 px-5 lg:px-8">
+        <Link href="/" className="flex shrink-0 items-center gap-4" aria-label="返回遇见首页">
+          <span className="font-display text-[28px] font-bold tracking-[0.16em] text-[#173e70]">遇见</span>
+          <span className="hidden border-l border-[#c8b998] pl-4 text-[11px] leading-5 tracking-[0.08em] text-[#65758a] sm:block">
+            在真实的生活里<br />遇见有趣的灵魂
+          </span>
+        </Link>
+
+        <nav className="ml-auto hidden h-[74px] items-stretch lg:flex" aria-label="主要导航">
+          {productNav.map(([label, href]) => (
+            <Link
+              key={label}
+              href={href}
+              className={`flex items-center border-b-2 px-6 font-display text-[15px] font-semibold tracking-[0.08em] transition-colors ${
+                href === '/profile'
+                  ? 'border-[#1769d7] text-[#1258bd]'
+                  : 'border-transparent text-[#173e70] hover:border-[#b7c8df] hover:text-[#1258bd]'
+              }`}
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
+
+        <label className="ml-auto hidden w-[250px] items-center gap-2 rounded-full border border-[#9dadc2]/35 bg-white/55 px-4 py-2 text-[#77859a] xl:flex">
+          <MagnifyingGlassIcon size={18} aria-hidden />
+          <input
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[#8f99a7]"
+            placeholder="搜索人、话题或内容…"
+            aria-label="搜索代表内容"
+          />
+        </label>
+
+        <Link href="/me" className="flex shrink-0 items-center gap-2 text-[#173e70]" aria-label="打开我的页面">
+          <span className="grid h-9 w-9 place-items-center rounded-full border border-[#c8b998]/70 bg-[#e6dcc9] font-display text-sm">遇</span>
+          <CaretDownIcon size={14} aria-hidden />
+        </Link>
+      </div>
+      <nav className="mx-auto flex max-w-[1280px] overflow-x-auto border-t border-[#b7a98e]/15 px-3 lg:hidden" aria-label="移动端主要导航">
+        {productNav.map(([label, href]) => (
+          <Link
+            key={label}
+            href={href}
+            className={`shrink-0 border-b-2 px-4 py-2.5 font-display text-sm ${
+              href === '/profile' ? 'border-[#1769d7] text-[#1258bd]' : 'border-transparent text-[#536a84]'
+            }`}
+          >
+            {label}
+          </Link>
+        ))}
+      </nav>
+    </header>
+  );
+}
+
 export default function ProfileExperience({ artifact, avatarSrc }: { artifact: Artifact; avatarSrc?: string | null }) {
   const [query, setQuery] = useState('');
   const [selection, setSelection] = useState<EvidenceSelection>(null);
@@ -131,8 +197,6 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
   const mapClaim = profile.summary.core_insights[0]?.claim || profile.summary.one_sentence;
   const evidenceById = useMemo(() => new Map(artifact.evidence_index.map((item) => [item.id, item])), [artifact.evidence_index]);
   const works = profile.representative_contents.filter((work) => `${work.title} ${work.why_representative}`.toLowerCase().includes(query.toLowerCase()));
-  const scroll = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
   useLayoutEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
@@ -244,15 +308,7 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
 
   return (
     <main className="reference-profile-page" id="overview">
-      <header className="reference-topbar">
-        <Link href="/" className="reference-logo">遇见</Link>
-        <nav aria-label="页面导航">{navItems.map(([label, target]) => <button key={target} type="button" onClick={() => scroll(target)}>{label}</button>)}</nav>
-        <div className="reference-actions">
-          <label><MagnifyingGlassIcon size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索遇见…" aria-label="搜索代表内容" /></label>
-          <button type="button" aria-label="通知"><BellSimpleIcon size={19} /></button>
-          <Link href="/me" aria-label="前往我的设置">遇</Link>
-        </div>
-      </header>
+      <ProfileHeader query={query} onQueryChange={setQuery} />
 
       <div ref={stageRef} className="reference-map-stage" style={{
         '--reference-scale': canvasScale,

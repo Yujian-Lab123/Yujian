@@ -1,0 +1,31 @@
+# Teams 需由组织管理员在 GitHub 上创建并授予本仓库访问权限，否则下面的规则不会生效。
+/app/profile/                 @Yujian-Lab123/profile
+/app/me/                      @Yujian-Lab123/profile
+/lib/profile/                 @Yujian-Lab123/profile
+/lib/ai/profile.ts            @Yujian-Lab123/profile
+
+/app/encounter/               @Yujian-Lab123/encounter
+/app/connect/                 @Yujian-Lab123/encounter
+/app/connections/             @Yujian-Lab123/encounter
+/app/api/encounters/          @Yujian-Lab123/encounter
+/app/api/connections/         @Yujian-Lab123/encounter
+/lib/retrieval/               @Yujian-Lab123/encounter
+/lib/ai/bridge.ts             @Yujian-Lab123/encounter
+
+/lib/db/                      @Yujian-Lab123/platform
+/lib/providers/               @Yujian-Lab123/platform
+/lib/session.ts               @Yujian-Lab123/platform
+/app/api/auth/                @Yujian-Lab123/platform
+/drizzle/                     @Yujian-Lab123/platform
+
+/app/page.tsx                 @Yujian-Lab123/release
+/app/onboarding/              @Yujian-Lab123/release
+/public/                      @Yujian-Lab123/release
+/.github/                     @Yujian-Lab123/release @Yujian-Lab123/platform
+
+/package.json                 @Yujian-Lab123/platform
+/package-lock.json            @Yujian-Lab123/platform
+/app/globals.css              @Yujian-Lab123/release @Yujian-Lab123/platform
+/components/                  @Yujian-Lab123/release @Yujian-Lab123/platform
+/lib/contracts/               @Yujian-Lab123/platform
+/*config*                     @Yujian-Lab123/platform

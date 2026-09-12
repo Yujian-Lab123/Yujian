@@ -1,0 +1,67 @@
+name: yujian-prod
+
+# 用法（在仓库根目录）：
+#   cp .env.example .env.prod   # 填好 TOKEN_ENCRYPTION_KEY / LLM_API_KEY / DEMO_AUTH_ENABLED
+#   docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+# 说明：
+#   - web 与 worker 使用同一个镜像，靠 command 区分；migrate 只跑一次（迁移 + 幂等种子）
+#   - DATABASE_URL 在下面自动拼装，.env.prod 里不需要再写
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.6-pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-yujian}
+      POSTGRES_USER: ${POSTGRES_USER:-yujian}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env.prod 里设置 POSTGRES_PASSWORD}
+    volumes:
+      - yujian_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-yujian} -d ${POSTGRES_DB:-yujian}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build: .
+    restart: "no"
+    env_file: .env.prod
+    command: ["sh", "-c", "npm run db:migrate && npm run db:seed"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-yujian}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-yujian}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-yujian}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-yujian}
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    build: .
+    restart: unless-stopped
+    command: ["npm", "run", "start:worker"]
+    env_file: .env.prod
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-yujian}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-yujian}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  yujian_pgdata:

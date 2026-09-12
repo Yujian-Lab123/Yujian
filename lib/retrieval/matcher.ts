@@ -1,9 +1,10 @@
 import { and, eq, or } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import { topAxes } from '../axes';
-import { contentBridge, deepMatch, pairScore } from '../ai/bridge';
+import { contentBridge, deepMatch, profileCompatibility } from '../ai/bridge';
 import { db, getUserVectors, recommendations, connections, connectionIntents, feedback, type ContentRow } from '../db';
 import { getUser, listUsers, type UserRow } from '../db/users';
+import { areIntentsCompatible, intentCompatibilityScore } from './intent';
 
 export interface RecCard {
   id: string;
@@ -16,7 +17,7 @@ export interface RecCard {
   shared: string[];
   difference: { label: string; note: string } | null;
   question: string;
-  scores: { long_term: number; conversation: number; current: number; intent: number; novelty: number; coarse: number; rerank: number; mutual: number; final: number };
+  scores: { long_term: number; conversation: number; current: number; intent: number; novelty: number; coarse: number; rerank: number; compatibility: number; final: number };
   status: string;
   moment?: boolean;
 }
@@ -25,7 +26,7 @@ interface Scored {
   u: UserRow;
   lt: number; val: number; conv: number; cur: number;
   intent: number; novelty: number; diversity: number;
-  coarse: number; rerank: number; mutual: number; final: number;
+  coarse: number; rerank: number; compatibility: number; final: number;
 }
 
 export async function buildEncounters(viewerId: string): Promise<RecCard[]> {
@@ -51,7 +52,7 @@ export async function buildEncounters(viewerId: string): Promise<RecCard[]> {
     ...ignored.map((item) => item.targetId),
   ]);
   let candidates = allUsers.filter((user) => user.id !== viewerId && user.encounter_enabled === 1 && !excluded.has(user.id));
-  if (viewer.intents.length > 0) candidates = candidates.filter((user) => user.intents.some((intent) => viewer.intents.includes(intent)));
+  candidates = candidates.filter((user) => areIntentsCompatible(viewer.intents, user.intents));
 
   const vectorPairs = await Promise.all(candidates.map(async (user) => ({ user, vectors: await getUserVectors(user.id) })));
   const seen = new Set(existingRecs.map((item) => item.targetId));
@@ -61,12 +62,12 @@ export async function buildEncounters(viewerId: string): Promise<RecCard[]> {
     val: cos0(viewerVectors.value, vectors.value),
     conv: cos0(viewerVectors.conversation, vectors.conversation),
     cur: viewerVectors.current && vectors.current ? cos0(viewerVectors.current, vectors.current) : 0,
-    intent: viewer.intents.length === 0 || user.intents.some((intent) => viewer.intents.includes(intent)) ? 1 : 0.5,
+    intent: intentCompatibilityScore(viewer.intents, user.intents),
     novelty: seen.has(user.id) ? 0.3 : 1,
     diversity: 0,
     coarse: 0,
     rerank: 0,
-    mutual: 0,
+    compatibility: 0,
     final: 0,
   }));
 
@@ -79,8 +80,8 @@ export async function buildEncounters(viewerId: string): Promise<RecCard[]> {
     pickedAxes.push(dominant);
     item.coarse = 0.3 * item.lt + 0.25 * item.conv + 0.2 * item.cur + 0.15 * item.intent + 0.05 * item.novelty + 0.05 * item.diversity;
     item.rerank = 0.7 * item.coarse + 0.3 * item.val;
-    item.mutual = Math.min(pairScore(viewerVectors, vectors), pairScore(vectors, viewerVectors));
-    item.final = 0.55 * item.rerank + 0.45 * item.mutual;
+    item.compatibility = profileCompatibility(viewerVectors, vectors);
+    item.final = 0.55 * item.rerank + 0.45 * item.compatibility;
   }
   scored.sort((a, b) => b.final - a.final);
 
@@ -93,23 +94,28 @@ export async function buildEncounters(viewerId: string): Promise<RecCard[]> {
     const reason = existing?.reason && Object.keys(existing.reason).length
       ? existing.reason as any
       : { ...(await deepMatch(currentViewer, item.u, bridge.anchor.vec)), bridge_reason: bridge.reason };
-    const id = existing?.id || `rec-${randomBytes(6).toString('hex')}`;
-    const scores = { lt: item.lt, conv: item.conv, cur: item.cur, intent: item.intent, novelty: item.novelty, coarse: item.coarse, rerank: item.rerank, mutual: item.mutual, final: item.final };
-    await db.insert(recommendations).values({
-      id, viewerId, targetId: item.u.id, scores, anchorId: bridge.anchor.id, reason, status: 'fresh',
+    const proposedId = existing?.id || `rec-${randomBytes(6).toString('hex')}`;
+    const scores = { lt: item.lt, conv: item.conv, cur: item.cur, intent: item.intent, novelty: item.novelty, coarse: item.coarse, rerank: item.rerank, compatibility: item.compatibility, final: item.final };
+    const anchorId = bridge.anchor.source === 'contents' ? bridge.anchor.id : null;
+    const bridgeMetadata = {
+      anchor_source: bridge.anchor.source,
+      anchor_snapshot: bridge.anchor.source === 'profile_artifact' ? bridge.anchor : null,
+    };
+    const [saved] = await db.insert(recommendations).values({
+      id: proposedId, viewerId, targetId: item.u.id, scores, anchorId, reason, bridge: bridgeMetadata, status: 'fresh',
     }).onConflictDoUpdate({
       target: [recommendations.viewerId, recommendations.targetId, recommendations.status],
-      set: { scores, anchorId: bridge.anchor.id, reason },
-    });
+      set: { scores, anchorId, reason, bridge: bridgeMetadata },
+    }).returning({ id: recommendations.id });
     return {
-      id,
+      id: saved.id,
       target: { id: item.u.id, name: item.u.name, role: item.u.role, city: item.u.city, quote: item.u.quote, tags: item.u.tags, zhihu_years: item.u.zhihu_years, upvotes: item.u.upvotes },
       anchor: bridge.anchor,
       reason: reason.bridge_reason || reason.why_for_viewer || '',
       shared: (reason.shared_ground || []).map((value: any) => value.label),
       difference: reason.interesting_difference || null,
       question: reason.conversation_question || '',
-      scores: { long_term: item.lt, conversation: item.conv, current: item.cur, intent: item.intent, novelty: item.novelty, coarse: item.coarse, rerank: item.rerank, mutual: item.mutual, final: item.final },
+      scores: { long_term: item.lt, conversation: item.conv, current: item.cur, intent: item.intent, novelty: item.novelty, coarse: item.coarse, rerank: item.rerank, compatibility: item.compatibility, final: item.final },
       status: 'fresh',
     };
   }

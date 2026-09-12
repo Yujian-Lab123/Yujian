@@ -2,7 +2,9 @@ import { z } from 'zod';
 import { AXES, AXIS_LABELS, QUESTION_BANK, cosine, topAxes, type Axis, type Vec } from '../axes';
 import { getContents, getUserVectors, type ContentRow, type UserVectors } from '../db';
 import { getUser, type UserRow } from '../db/users';
+import { getLatestProfileArtifactForUser } from '../profile/repository';
 import { chatJSON } from '../providers/llm';
+import { profileArtifactContents } from '../retrieval/profile-content';
 
 // ============ Deep Match / Content Bridge / Conversation Bridge ============
 
@@ -15,10 +17,33 @@ export const DeepMatchSchema = z.object({
 });
 export type DeepMatch = z.infer<typeof DeepMatchSchema>;
 
-/** 单向配对分 A→B：长期 0.4 + 价值问题 0.3 + 对话风格 0.2 + 此刻 0.1 */
-export function pairScore(a: UserVectors, b: UserVectors): number {
+/**
+ * 画像兼容度：长期 0.4 + 价值问题 0.3 + 对话风格 0.2 + 此刻 0.1。
+ * 这是推荐前的模型估计，不代表任何一方对具体对象表达了认识意愿。
+ */
+export function profileCompatibility(a: UserVectors, b: UserVectors): number {
   const cur = a.current && b.current ? cosine(a.current, b.current) : 0;
   return 0.4 * cosine(a.long_term, b.long_term) + 0.3 * cosine(a.value, b.value) + 0.2 * cosine(a.conversation, b.conversation) + 0.1 * cur;
+}
+
+export interface BridgeContent extends ContentRow {
+  source: 'contents' | 'profile_artifact';
+}
+
+export interface ContentBridgeResult {
+  anchor: BridgeContent;
+  reason: string;
+}
+
+/**
+ * 优先读取规范化 contents；真实画像尚未完成内容表同步时，直接使用画像证据中的代表内容。
+ * 这样真实用户不会因为缺少旧 Demo contents 行而在制卡阶段被静默丢弃。
+ */
+export async function getBridgeContents(userId: string): Promise<BridgeContent[]> {
+  const stored = await getContents(userId);
+  if (stored.length > 0) return stored.map((content) => ({ ...content, source: 'contents' as const }));
+  const artifact = await getLatestProfileArtifactForUser(userId);
+  return artifact ? profileArtifactContents(userId, artifact) : [];
 }
 
 export function sharedAxes(a: Vec, b: Vec, n = 3): { axis: Axis; label: string; score: number }[] {
@@ -75,7 +100,7 @@ export async function deepMatch(viewer: UserRow, target: UserRow, anchorVec?: Ve
     value_questions: topAxes(v.value, 3).map((t) => AXIS_LABELS[t.axis]),
     anchors: [] as string[],
   });
-  const [viewerContents, targetContents] = await Promise.all([getContents(viewer.id), getContents(target.id)]);
+  const [viewerContents, targetContents] = await Promise.all([getBridgeContents(viewer.id), getBridgeContents(target.id)]);
   const payload = (u: UserRow, v: UserVectors, items: ContentRow[]) => ({
     ...fmt(u, v),
     anchors: items.filter((c) => c.is_anchor).map((c) => `${c.title}：${c.summary}`),
@@ -89,8 +114,8 @@ export async function deepMatch(viewer: UserRow, target: UserRow, anchorVec?: Ve
 }
 
 /** Content Bridge：从 target 的 Content Anchors 中选最适合 viewer 的一篇 */
-export async function contentBridge(viewerId: string, targetId: string): Promise<{ anchor: ContentRow; reason: string } | null> {
-  const [vv, contents] = await Promise.all([getUserVectors(viewerId), getContents(targetId)]);
+export async function contentBridge(viewerId: string, targetId: string): Promise<ContentBridgeResult | null> {
+  const [vv, contents] = await Promise.all([getUserVectors(viewerId), getBridgeContents(targetId)]);
   const scored = contents
     .map((c) => ({
       c,

@@ -35,6 +35,7 @@ export function vec(p: Partial<Record<Axis, number>>): Vec {
 }
 
 export function cosine(a: Vec, b: Vec): number {
+  if (a.length === 0 || a.length !== b.length) return 0;
   let dot = 0;
   let na = 0;
   let nb = 0;

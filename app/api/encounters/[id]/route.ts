@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getContents } from '@/lib/db';
+import { getBridgeContents } from '@/lib/ai/bridge';
 import { getUser } from '@/lib/db/users';
 import { getRec } from '@/lib/retrieval/matcher';
 import { getSessionUserId } from '@/lib/session';
@@ -13,7 +13,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   const target = await getUser(rec.target_id);
   if (!target) return NextResponse.json({ ok: false, error: '用户不存在' }, { status: 404 });
   const reason: any = rec.reason || {};
-  const others = (await getContents(target.id)).filter((c) => c.id !== rec.anchor_id).slice(0, 3);
+  const bridge = rec.bridge as { anchor_snapshot?: { id?: string } | null } | null;
+  const anchorId = rec.anchor_id || bridge?.anchor_snapshot?.id || null;
+  const others = (await getBridgeContents(target.id)).filter((content) => content.id !== anchorId).slice(0, 3);
   return NextResponse.json({
     ok: true,
     rec: {

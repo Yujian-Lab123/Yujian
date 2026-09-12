@@ -43,3 +43,15 @@ export async function getProfileArtifact(slug: string): Promise<ProfileArtifact 
     .where(eq(profileArtifacts.slug, slug)).limit(1);
   return row ? row.artifact as unknown as ProfileArtifact : null;
 }
+
+/**
+ * 匹配模块只按用户读取最新画像，不依赖文件名或展示 slug。
+ * 同一用户可能重复生成画像，因此必须以更新时间而不是插入顺序为准。
+ */
+export async function getLatestProfileArtifactForUser(userId: string): Promise<ProfileArtifact | null> {
+  const [row] = await db.select({ artifact: profileArtifacts.artifact }).from(profileArtifacts)
+    .where(eq(profileArtifacts.userId, userId))
+    .orderBy(desc(profileArtifacts.updatedAt))
+    .limit(1);
+  return row ? row.artifact as unknown as ProfileArtifact : null;
+}

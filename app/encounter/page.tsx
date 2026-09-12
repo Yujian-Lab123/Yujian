@@ -131,7 +131,7 @@ export default function EncounterPage() {
 
           {/* 底部三原则 */}
           <footer className="mt-14 grid gap-6 text-center md:grid-cols-3">
-            {[['🙋', '真实表达', 'AI 帮助理解彼此的思考'], ['💞', '双向喜欢', '只有互相喜欢才会开启对话'], ['🛡', '安全放心', '隐私保护贯穿整个过程']].map(([i, t, s]) => (
+            {[['🙋', '真实表达', 'AI 帮助理解彼此的思考'], ['💞', '双向确认', '双方都表达认识意愿后才会连接'], ['🛡', '安全放心', '隐私保护贯穿整个过程']].map(([i, t, s]) => (
               <div key={t} className="flex items-center justify-center gap-3 text-left">
                 <span className="text-xl">{i}</span>
                 <div><p className="text-sm font-medium text-sumi-700">{t}</p><p className="text-xs text-sumi-400">{s}</p></div>

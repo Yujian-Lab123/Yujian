@@ -20,11 +20,20 @@ Mock 阶段向量由种子数据人工标注在 16 维概念轴上；接入 Embe
 2. **Vector Recall**：long_term / value / conversation / current 多维余弦各取 Top，合并去重。不调 LLM。
 3. **Algorithmic Ranking**：`0.30·long_term + 0.25·conversation + 0.20·current + 0.15·intent + 0.05·novelty + 0.05·diversity`。novelty=未曝光；diversity=主轴与已选候选不同。
 4. **Reranker**：Mock `0.7·coarse + 0.3·value_cos`；真实阶段换 Qwen/gte rerank，只给结构化 Profile。
-5. **LLM Deep Match（仅 Top 5）**：判断双向为什么值得认识、共同点、值得讨论的差异、开场问题。Zod 校验，失败回退 Mock。
-6. **MutualScore**：`min(A→B, B→A)`；`final = 0.55·rerank + 0.45·mutual`。单边高分不优先。
+5. **LLM Deep Match（仅 Top 5）**：解释为什么值得开始一次对话、共同点、值得讨论的差异、开场问题。Zod 校验，失败回退 Mock。它不能预测或声称双方已经愿意认识。
+6. **Profile Compatibility**：长期、价值、对话和此刻向量形成推荐前的画像兼容度；`final = 0.55·rerank + 0.45·compatibility`。该分数是模型估计，不是“双向意愿”。
 7. **Content Bridge**：从 TA 的锚定内容里选 `0.7·cos(c, viewer.long_term) + 0.3·cos(c, viewer.value) + anchor_bonus` 最高的一篇——“认识 TA 最自然的入口”。
 8. **Conversation Bridge**：开场问题由“桥接内容”驱动——在双方交集中选与锚定内容最贴近的轴，从问题库取问（真实阶段由 LLM 严格引用双方内容生成）。
 9. **此刻遇见**：用户有当前状态时，current 余弦 ≥ 0.55 的人置顶并打 `moment` 标——Present Self 改变推荐。
+
+## 意愿状态机
+
+1. `encounter_enabled=true`：用户允许系统把自己放入候选池。
+2. `intents[]`：用户描述想要的关系或交流类型，只参与推荐前筛选。
+3. 用户看到具体对象后点击“想认识 TA”，写入一条 A→B 的 `pending` 单向意愿。
+4. 只有 B→A 也存在时才成为双向确认，并幂等创建 connection。
+
+推荐前无法观测具体两个人对彼此的真实意愿。任何相似度、兼容度或模型预测都不得展示为“双向意愿”。
 
 ## 反馈与指标
 

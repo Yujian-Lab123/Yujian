@@ -1,0 +1,174 @@
+.page {
+  background-image:
+    linear-gradient(rgba(250, 246, 238, 0.68), rgba(250, 246, 238, 0.84)),
+    url('/images/profile/ink-landscape-bg-v1.png');
+  background-position: center top;
+  background-size: auto, cover;
+}
+
+.loadingCard {
+  background: rgba(253, 251, 247, 0.82);
+  backdrop-filter: blur(8px);
+}
+
+.inkStage {
+  position: relative;
+  height: 9.25rem;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(169, 131, 74, 0.18);
+  isolation: isolate;
+}
+
+.inkLandscape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.mountainBack,
+.mountainFront,
+.riverStroke,
+.birdStroke {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mountainBack {
+  stroke: rgba(107, 102, 90, 0.38);
+  stroke-width: 19;
+  filter: blur(5px);
+  stroke-dasharray: 560;
+  animation: drawInk 2.8s ease-in-out infinite alternate;
+}
+
+.mountainFront {
+  stroke: rgba(58, 54, 44, 0.52);
+  stroke-width: 9;
+  filter: blur(2px);
+  stroke-dasharray: 540;
+  animation: drawInk 2.45s 0.18s ease-in-out infinite alternate;
+}
+
+.riverStroke {
+  stroke: rgba(169, 131, 74, 0.58);
+  stroke-width: 2;
+  stroke-dasharray: 330;
+  animation: drawInk 2.2s 0.55s ease-in-out infinite alternate;
+}
+
+.birdStroke {
+  stroke: rgba(76, 72, 61, 0.62);
+  stroke-width: 2;
+  stroke-dasharray: 60;
+  animation: drawInk 1.8s 0.8s ease-in-out infinite alternate;
+}
+
+.inkWash {
+  position: absolute;
+  z-index: -1;
+  width: 8rem;
+  height: 8rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(169, 131, 74, 0.17), rgba(169, 131, 74, 0));
+  filter: blur(5px);
+  animation: breatheWash 3.2s ease-in-out infinite;
+}
+
+.inkWashLeft { left: -2rem; top: 1rem; }
+.inkWashRight { right: -1.5rem; top: -2rem; animation-delay: -1.4s; }
+
+.inkPulse {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: 3.8rem;
+  height: 3.8rem;
+  border: 1px solid rgba(169, 131, 74, 0.35);
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  animation: inkRipple 2.4s ease-out infinite;
+}
+
+.loaderSeal {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  display: grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  place-items: center;
+  border-radius: 0.2rem;
+  background: rgba(140, 106, 57, 0.9);
+  color: #fffaf0;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 0.95rem;
+  transform: translate(-50%, -50%) rotate(-3deg);
+  box-shadow: 0 4px 14px rgba(76, 60, 30, 0.15);
+}
+
+.progressTrack {
+  overflow: hidden;
+  height: 2px;
+  margin-top: 0.7rem;
+  background: rgba(217, 201, 168, 0.55);
+}
+
+.progressTrack > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #d9c9a8, #a9834a);
+  transition: width 520ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.stepDone { animation: stampIn 420ms cubic-bezier(0.18, 0.8, 0.25, 1.3) both; }
+
+@keyframes drawInk {
+  0% { stroke-dashoffset: 560; opacity: 0.18; }
+  58%, 100% { stroke-dashoffset: 0; opacity: 1; }
+}
+
+@keyframes breatheWash {
+  0%, 100% { opacity: 0.45; transform: scale(0.86); }
+  50% { opacity: 0.9; transform: scale(1.12); }
+}
+
+@keyframes inkRipple {
+  0% { opacity: 0.7; transform: translate(-50%, -50%) scale(0.7); }
+  78%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.65); }
+}
+
+@keyframes stampIn {
+  from { opacity: 0; transform: scale(1.5) rotate(8deg); }
+  to { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@media (max-width: 600px) {
+  .page :global(header) { padding: 1rem; }
+  .page :global(header nav) { gap: 0.8rem; }
+  .page :global(header nav > a:last-child) { padding: 0.3rem 0.5rem; }
+  .page :global(header nav > a:last-child[href="/me"]) { padding: 0.3rem; font-size: 0; }
+  .page :global(header nav > a:last-child[href="/me"] span) { font-size: 0.75rem; }
+  .inkStage { height: 8rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mountainBack,
+  .mountainFront,
+  .riverStroke,
+  .birdStroke,
+  .inkWash,
+  .inkPulse,
+  .stepDone { animation: none; }
+  .mountainBack,
+  .mountainFront,
+  .riverStroke,
+  .birdStroke { stroke-dashoffset: 0; opacity: 1; }
+  .progressTrack > span { transition: none; }
+  .page :global(.pulse-soft),
+  .page :global(.fade-up),
+  .page :global(.fade-up-1),
+  .page :global(.fade-up-2),
+  .page :global(.fade-up-3) { animation: none; }
+}

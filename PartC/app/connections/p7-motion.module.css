@@ -1,0 +1,14 @@
+@media (max-width: 600px) {
+  .page :global(header) { padding: 1rem; }
+  .page :global(header nav) { gap: 0.8rem; }
+  .page :global(header nav > a:last-child) { padding: 0.3rem 0.5rem; }
+  .page :global(header nav > a:last-child[href="/me"]) { padding: 0.3rem; font-size: 0; }
+  .page :global(header nav > a:last-child[href="/me"] span) { font-size: 0.75rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page :global(.fade-up),
+  .page :global(.fade-up-1),
+  .page :global(.fade-up-2),
+  .page :global(.fade-up-3) { animation: none; }
+}

@@ -1,0 +1,38 @@
+import path from 'node:path';
+import { listArtifacts, listCrawlerInputs, readArtifactFile, resolveLocalAvatar } from '@/lib/profile/store';
+import { getProfileArtifact, listProfileArtifacts } from '@/lib/profile/repository';
+import ProfileExperience from './profile-experience';
+import ProfileCorner from './profile-corner';
+
+/**
+ * 人物画像页:整页渲染 profile-output/ 下的产物(.profile.json)。
+ * ?name=<slug> 查看指定人物;缺省展示最新一份。切换/生成收在右下角浮层(ProfileCorner)。
+ * 头像:public/avatars/<slug>.jpg 优先(scripts/fetch-avatar-browser.py 抓取或手动放入),否则水墨兜底图。
+ */
+export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ name?: string }> }) {
+  const { name } = await searchParams;
+  const root = process.cwd();
+  const outDir = path.join(root, 'profile-output');
+  let databaseArtifacts = [] as Awaited<ReturnType<typeof listProfileArtifacts>>;
+  try { databaseArtifacts = await listProfileArtifacts(); } catch { /* bootstrap 前保留本地画像预览 */ }
+  const localArtifacts = listArtifacts(outDir);
+  const artifacts = [...databaseArtifacts, ...localArtifacts.filter((local) => !databaseArtifacts.some((stored) => stored.slug === local.slug))];
+  const selectedSlug = name && artifacts.some((a) => a.slug === name) ? name : artifacts[0]?.slug;
+  let artifact = selectedSlug ? await getProfileArtifact(selectedSlug).catch(() => null) : null;
+  if (!artifact && selectedSlug) artifact = readArtifactFile(outDir, selectedSlug);
+  const inputs = listCrawlerInputs(path.join(root, 'data', 'crawler'));
+  const avatarSrc = selectedSlug ? resolveLocalAvatar(path.join(root, 'public'), selectedSlug) : null;
+
+  return (
+    <>
+      {artifact ? (
+        <ProfileExperience artifact={artifact} avatarSrc={avatarSrc} />
+      ) : (
+        <main className="flex min-h-screen items-center justify-center bg-[#f7f4ee] text-[#8a857c]">
+          <p>还没有画像产物——点右下角「生成画像」从爬虫数据创建一份。</p>
+        </main>
+      )}
+      <ProfileCorner artifacts={artifacts} inputs={inputs} activeSlug={selectedSlug ?? null} />
+    </>
+  );
+}

@@ -1,0 +1,1994 @@
+《遇见》项目总说明与 MVP 开发计划
+0. 你的角色
+
+你现在是本项目的：
+
+高级产品工程师 + 全栈开发者 + AI/RAG 工程师 + 推荐系统工程师。
+
+请实际完成项目，而不是只给方案。
+
+项目暂定名称：
+
+遇见
+
+一句话定位：
+
+发现一个值得聊一句的人。
+
+核心概念：
+
+知乎已经帮助用户找到值得看的内容；
+「遇见」希望让 AI 再往前一步，通过用户长期留下的真实内容，帮助用户发现一个原本不会认识、但可能值得聊一句的人。
+
+本项目首先用于知乎 Hackathon Demo。
+
+当前目标不是开发一个完整成熟的社交网络，而是验证一个核心假设：
+
+AI 是否能够通过两个人长期留下的内容 + 此刻状态 + 当前连接意愿，发现一个双方真正愿意进一步了解的人？
+
+一、产品背景
+
+知乎用户长期留下了大量：
+
+回答
+文章
+想法
+收藏
+关注
+评论
+人生经历
+专业观点
+对具体问题的选择与思考
+
+传统推荐系统主要利用这些数据回答：
+
+用户接下来可能想看什么？
+
+「遇见」希望尝试另外一个问题：
+
+这些内容背后的人，是否存在值得被彼此发现的潜在关系？
+
+传统社交软件通常首先展示：
+
+照片
+性别
+年龄
+学校
+工作
+兴趣标签
+
+然后让用户判断：
+
+要不要认识这个人？
+
+「遇见」采用相反的顺序：
+
+内容
+↓
+产生共鸣
+↓
+进一步了解
+↓
+发现作者
+↓
+产生“想认识这个人”的兴趣
+↓
+双向同意
+↓
+建立连接
+
+核心原则：
+
+先理解一个人的思想，再认识这个人。
+
+但需要注意：
+
+“先内容后人”本身并不是创新，小红书、Slowly 等产品已经存在类似机制。
+
+「遇见」真正需要验证的创新点是：
+
+AI 能否通过一个人的长期内容历史，主动发现传统内容推荐系统不会发现的人际连接。
+
+二、产品核心模型
+
+不要简单把用户理解成一个 Embedding。
+
+每个用户至少需要包含四个层级。
+
+1. Long-term Self：长期自我
+
+来自用户长期知乎内容。
+
+用于理解相对稳定的：
+
+长期兴趣
+长期关注主题
+专业领域
+反复出现的问题
+明确表达过的价值选择
+人生阶段
+内容表达方式
+真实经历
+
+例如：
+
+长期主题：
+AI / 软件 / 投资 / 阅读
+
+反复问题：
+自由与稳定
+长期选择
+职业意义
+
+明确表达：
+更重视自主选择
+愿意长期投入感兴趣的事情
+
+这一层以月、年为时间尺度。
+
+不需要频繁重新计算。
+
+2. Present Self：此刻自我
+
+来自：
+
+今日心情
+最近状态
+「侧面」内容
+最近想聊的问题
+最近发生的事情
+
+例如：
+
+最近项目很多，有些疲惫
+最近想找个人晚上散步
+正在纠结毕业城市
+最近很想认识一些新朋友
+
+这一层是短周期信号。
+
+可以设置：
+
+24小时
+7天
+30天
+
+随着时间自动降低权重。
+
+3. Intent：当前连接意愿
+
+这个必须由用户明确选择。
+
+不要让 AI 猜。
+
+例如：
+
+遇见开关：ON
+
+希望认识：
+朋友
+恋爱可能
+同行
+合作伙伴
+户外搭子
+随便聊聊
+
+以及可选硬条件：
+
+年龄范围
+城市
+性别偏好
+是否接受异地
+人生阶段
+
+第一版不要要求用户配置太多。
+
+默认可以只有：
+
+愿意认识新朋友。
+
+4. Content Anchors：认识一个人的内容入口
+
+一个用户可能有 100 篇甚至更多内容。
+
+不能把所有内容每次重新交给 LLM。
+
+系统第一次处理用户时，需要识别：
+
+哪几篇内容最能够代表 TA 的不同侧面？
+
+例如：
+
+职业选择代表内容
+个人生活代表内容
+长期价值思考代表内容
+兴趣代表内容
+人生经历代表内容
+
+建议每个用户保留：
+
+3～10 个 Content Anchors。
+
+每个 Anchor 保存：
+
+原始 URL
+标题
+摘要
+主题
+内容 Embedding
+与用户长期画像之间的关系
+
+以后 A 匹配到 B 时，系统继续做：
+
+B 的哪一篇内容最适合先展示给 A？
+
+这叫：
+
+Content Bridge
+三、不要建立“人格测试”
+
+本项目使用：
+
+Content Profile
+
+不要宣传成：
+
+人格画像。
+
+系统只能根据用户实际授权内容总结：
+
+TA写过什么、经常讨论什么、明确表达过什么。
+
+必须区分：
+
+explicit
+原文明确表达
+
+inferred
+AI根据多篇内容归纳
+
+unknown
+无法确定
+
+不要未经支持输出：
+
+MBTI
+依恋类型
+精神状态诊断
+智商
+人格障碍
+“灵魂伴侣”
+伪精确心理概率
+
+也不要用：
+
+灵魂契合度 93%
+
+作为核心 UI。
+
+四、产品真正匹配的不是“相似度”
+
+系统需要优化的核心应该叫：
+
+Conversation Potential
+
+即：
+
+两个人之间是否存在值得开始一次对话的东西？
+
+因此需要同时考虑：
+
+长期内容是否存在交集
+长期关注的问题是否类似
+双方有没有值得讨论的差异
+人生阶段是否有一定相关性
+当前状态是否存在交集
+当前是否愿意认识人
+现实条件是否允许
+是否具有新颖性
+是否已经曝光过
+
+不是：
+
+越像越好
+
+完全一样的人不一定最值得认识。
+
+适度差异有时反而更容易产生：
+
+“我想问问 TA 为什么这么想。”
+
+五、匹配系统总体架构
+
+禁止：
+
+A用户全文
+×
+所有其他用户全文
+×
+LLM逐个比较
+
+这会产生无法接受的：
+
+O(N²)
+
+复杂度和 Token 成本。
+
+正确方案采用：
+
+离线理解 + 在线召回 + 少量 LLM 精排
+
+总体：
+
+用户加入
+↓
+知乎 OAuth
+↓
+获取授权内容
+↓
+LLM离线理解
+↓
+结构化 Profile
++
+多个 Embedding
++
+Content Anchors
+↓
+保存数据库
+
+
+用户打开「遇见」
+↓
+SQL Hard Filter
+↓
+Vector Recall
+↓
+算法粗排
+↓
+Reranker
+↓
+Top K
+↓
+LLM Deep Match
+↓
+选择最终1～3人
+↓
+Content Bridge
+↓
+Conversation Bridge
+↓
+展示推荐
+六、用户第一次加入时的处理
+
+用户第一次 OAuth 后：
+
+获取知乎授权内容
+↓
+清洗
+↓
+去重
+↓
+按主题/时间分块
+↓
+LLM结构化分析
+↓
+生成长期Profile
+↓
+生成多个Embedding
+↓
+挑选代表内容
+↓
+数据库缓存
+
+这个工作：
+
+只认真做一次。
+
+用户以后新增内容：
+
+只处理增量
+↓
+更新Profile
+
+不要每次匹配重新分析全部历史内容。
+
+七、建议存储多个向量
+
+不要把整个人压成唯一：
+
+user_embedding
+
+至少考虑：
+
+topic_embedding
+
+value_question_embedding
+
+life_stage_embedding
+
+conversation_embedding
+
+current_state_embedding
+
+另外：
+
+content_anchor_embedding[]
+
+也需要保存。
+
+第一版如果实现复杂度太高，可以压缩成：
+
+long_term_embedding
+current_state_embedding
+conversation_embedding
+content_embedding[]
+八、在线匹配过程
+
+假设平台有：
+
+100000用户
+
+用户 A 打开「遇见」。
+
+不要让 LLM读 99999 个人。
+
+Step 1：Hard Filter
+
+数据库 SQL 筛选：
+
+100000
+↓
+已开启遇见
+↓
+关系意图兼容
+↓
+城市/年龄/性别等用户主动设置条件
+↓
+例如剩余 5000
+
+几乎没有 AI 成本。
+
+Step 2：Vector Recall
+
+分别使用：
+
+长期画像
+当前状态
+Conversation
+Content
+
+做 ANN / pgvector 检索。
+
+例如：
+
+长期相似 Top200
+当前状态 Top200
+共同问题 Top200
+内容兴趣 Top200
+
+合并去重：
+
+5000
+↓
+300～500候选
+
+这一层不调用 LLM。
+
+Step 3：Algorithmic Ranking
+
+普通算法计算：
+
+long_term_score
+current_state_score
+intent_score
+conversation_score
+novelty
+diversity
+location_fit
+unseen_bonus
+
+第一版允许采用启发式权重。
+
+例如：
+
+30% long_term
+25% conversation
+20% current_state
+15% intent
+5% novelty
+5% diversity
+
+权重不是科学真理。
+
+Hackathon 阶段只需要有合理逻辑。
+
+得到：
+
+300
+↓
+Top 30～50
+九、Reranker
+
+Top 30～50 可以使用：
+
+Qwen Reranker
+其他便宜 Rerank 模型
+
+进一步：
+
+50
+↓
+Top10
+
+仍然不要把全文交给大模型。
+
+只给：
+
+结构化Profile
+当前状态
+代表内容摘要
+十、LLM Deep Match
+
+只有 Top 5～10 才交给 Qwen3.8-Max 等较强模型。
+
+LLM需要判断：
+
+A 为什么可能想认识 B？
+B 为什么可能想认识 A？
+有没有真正的 Conversation Potential？
+有没有只是“主题相似”但实际没什么可聊？
+双方最重要的共同点是什么？
+哪个差异反而值得讨论？
+
+最终选择：
+
+Top 1～3
+十一、匹配必须考虑双向
+
+不能只算：
+
+A → B
+
+还要估计：
+
+B → A
+
+例如：
+
+A → B = 90
+B → A = 42
+
+不应该成为优先推荐。
+
+而：
+
+A → B = 82
+B → A = 79
+
+更加值得。
+
+可以使用：
+
+MutualScore = min(A→B, B→A)
+
+第一版足够。
+
+也可以以后尝试：
+
+sqrt(A→B × B→A)
+十二、Content Bridge
+
+匹配出 B 后：
+
+不要直接告诉 A：
+
+给你推荐 B。
+
+系统需要继续从 B 的 Content Anchors 中选择：
+
+哪一篇内容最适合先给 A 看？
+
+例如 B 是摄影创作者。
+
+文章有：
+
+《如何选择35mm镜头》
+
+《我为什么最后没有去大厂》
+
+《一次西藏旅行》
+
+《如何调色》
+
+A长期关心：
+
+职业选择、自由、长期规划。
+
+系统应该优先展示：
+
+《我为什么最后没有去大厂》
+
+而不是摄影教程。
+
+因为这一篇是：
+
+A认识B最自然的入口。
+
+这就是产品非常重要的：
+
+Content Bridge
+十三、Conversation Bridge
+
+AI接着根据双方真实内容生成：
+
+一个两个人真的可能聊得下去的问题。
+
+例如：
+
+A长期写：
+
+工作稳定性。
+
+B长期写：
+
+自由职业。
+
+那么：
+
+如果收入下降30%，但是每周多两天完全属于自己的时间，你会接受吗？
+
+比：
+
+“你好，你也喜欢科技吗？”
+
+高级很多。
+
+AI不要代替用户发送消息。
+
+只负责：
+
+找到一个值得开始的地方。
+
+十四、「侧面」功能
+
+除了正式知乎内容以外，增加：
+
+侧面
+
+它不是第二知乎账号。
+
+后台仍然绑定：
+
+真实 OAuth User ID
+
+但前台可以显示：
+
+化名
+抽象头像
+
+用户可以在那里发布：
+
+情绪
+最近困惑
+碎碎念
+不方便放在主知乎主页的感受
+最近想聊什么
+今天想做什么
+
+例如：
+
+最近一直写代码，脑子快炸了，很想晚上找个人出去走走。
+
+侧面数据：
+
+AI后台可以读取
+用于 Current State
+不一定公开主知乎身份
+用户自己控制
+
+第一版可以只做：
+
+一条当前状态。
+
+没必要先做完整 Feed。
+
+十五、今日心情 / Current State
+
+用户打开遇见时，可以非常轻量地问：
+
+今天怎么样？
+
+例如：
+
+想安静聊聊
+想认识新朋友
+有点累
+想出去走走
+最近在纠结一件事
+随便看看
+
+也允许一句自由文字：
+
+今天刚结束比赛，突然特别想找人散散步。
+
+这部分进入：
+
+current_state_embedding
+
+用于「此刻遇见」。
+
+十六、推荐可以分成两类
+
+未来可以支持：
+
+长期遇见
+
+TA 长期来看可能值得认识。
+
+依赖：
+
+知乎长期内容
+此刻遇见
+
+TA 今天可能特别值得聊一句。
+
+依赖：
+
+长期内容
++
+Current State
++
+遇见Intent
+
+MVP 第一版可以不做 Tab。
+
+内部综合计算即可。
+
+十七、用户体验
+
+第一版不要配置感太强。
+
+主页不要：
+
+填写20项资料
+选择30个兴趣
+人格测试
+设置几十项偏好
+
+推荐体验：
+
+Page 1：首页
+遇见
+
+看看知乎里，有没有一个你本来不会遇见的人。
+
+按钮：
+
+使用知乎继续
+
+十八、OAuth 后
+
+页面显示：
+
+你不需要重新写一份自我介绍。
+
+你过去留下的那些东西，本身就是。
+
+然后：
+
+正在读一些你允许我们看到的内容……
+
+可以用漂亮动画展示：
+
+回答
+文章
+话题
+长期问题
+十九、AI理解结果
+
+不要显示复杂画像。
+
+只展示：
+
+你最近长期在意的，不只是「AI」
+
+过去的内容里，你经常讨论：
+
+技术
+产品
+长期选择
+投资
+
+但这些内容背后反复出现的一个问题是：
+
+“怎样做出真正属于自己的选择？”
+
+按钮：
+
+开始遇见
+
+用户允许：
+
+正确
+有点不准
+
+即可。
+
+二十、推荐主页
+
+不要出现一排头像。
+
+展示：
+
+今天想先给你看一篇东西。
+
+文章卡：
+
+《毕业以后，我为什么没有去大厂》
+
+AI摘要。
+
+然后：
+
+为什么给你看？
+
+例如：
+
+你们写的是完全不同的事情，但过去都反复思考过：
+
+稳定与自由究竟应该怎么排序？
+
+共同点：
+
+长期选择
+自主决定
+对成功标准的反思
+
+有意思的不同：
+
+TA更愿意承担短期不确定性。
+
+按钮：
+
+看看 TA 怎么想
+二十一、深入了解作者
+
+进入：
+
+TA还写过
+
+3～5篇代表内容。
+
+同时展示：
+
+你们可能有这些交集
+一个值得讨论的不同
+如果真的聊起来，可以从这里开始
+
+最后一个按钮：
+
+我有点想认识 TA
+二十二、反向发现
+
+A点击以后：
+
+B不要立即收到：
+
+A喜欢你。
+
+而是：
+
+有一个人读完你的内容以后，想继续了解你。
+
+然后系统先展示：
+
+A最适合B看的那篇文章。
+
+只有B也选择：
+
+我也想认识TA
+
+才成立。
+
+二十三、连接成功
+
+页面：
+
+你们都愿意认识彼此。
+
+此时才正式显示：
+
+昵称
+头像
+主页
+共同问题
+
+然后：
+
+去知乎主页
+关注
+私信
+开始讨论
+
+如果 Hackathon API 不允许写操作：
+
+Deep Link 到知乎。
+
+不要重新造聊天系统。
+
+二十四、产品一级结构
+
+Hackathon 建议只做：
+
+遇见
+已遇见
+我的
+
+如果时间充足再做：
+
+侧面
+
+不要第一版做：
+
+动态广场
+Feed
+群聊
+朋友圈
+好友系统
+直播
+视频
+左右滑
+排行榜
+二十五、与知乎现有能力关系
+
+知乎负责：
+
+用户身份
+内容生产
+回答
+文章
+想法
+关注
+评论
+私信
+圈子
+
+「遇见」只增加：
+
+People Discovery Layer
+
+即：
+
+谁值得被你发现。
+
+不要重新建设知乎。
+
+产品应该像：
+
+知乎 Plus / AI 关系探索接口。
+
+二十六、与其他产品区别
+普通知乎推荐
+
+解决：
+
+我接下来可能想看什么内容？
+
+小红书
+
+经常形成：
+
+偶然看到内容
+→ 对作者感兴趣
+→ 互动
+Tinder / 探探
+资料卡
+→ 判断人
+→ 匹配
+Soul
+兴趣图谱
++
+Avatar
++
+当前表达
+→ 人际匹配
+Slowly
+先写信
+→ 认识人
+遇见
+长期知乎内容
++
+此刻状态
++
+明确连接意愿
+↓
+AI主动发现
+↓
+选择最适合双方认识的内容
+↓
+一个自然对话问题
+↓
+人际连接
+
+真正差异：
+
+Long-term Self × Present Self × Intent
+
+即：
+
+长期的你
+×
+此刻的你
+×
+现在愿不愿意认识人
+
+二十七、数据库建议
+
+第一版 PostgreSQL + pgvector。
+
+至少设计：
+
+users
+
+oauth_accounts
+
+contents
+
+content_embeddings
+
+user_profiles
+
+user_profile_embeddings
+
+current_states
+
+current_state_embeddings
+
+match_preferences
+
+candidate_pairs
+
+recommendations
+
+recommendation_feedback
+
+connection_intents
+
+connections
+
+如果做侧面：
+
+personas
+side_posts
+二十八、users
+
+建议字段：
+
+id
+zhihu_user_id
+display_name
+avatar_url
+profile_url
+encounter_enabled
+created_at
+updated_at
+二十九、contents
+id
+user_id
+zhihu_content_id
+content_type
+title
+content
+summary
+url
+published_at
+updated_at
+is_anchor
+created_at
+三十、user_profiles
+
+建议 JSONB。
+
+例如：
+
+{
+  "topics": [],
+  "recurring_questions": [],
+  "explicit_values": [],
+  "life_stage": null,
+  "professional_domains": [],
+  "content_styles": [],
+  "representative_experiences": [],
+  "unknowns": []
+}
+
+每个字段如果条件允许保存：
+
+{
+  "value": "...",
+  "evidence_type": "explicit|inferred",
+  "evidence_content_ids": []
+}
+三十一、current_states
+id
+user_id
+text
+mood
+intent
+valid_from
+expires_at
+created_at
+
+当前状态需要：
+
+自动过期 / 衰减。
+
+三十二、recommendations
+id
+
+viewer_user_id
+
+target_user_id
+
+score
+
+long_term_score
+
+current_state_score
+
+conversation_score
+
+intent_score
+
+content_anchor_id
+
+recommendation_reason
+
+conversation_bridge
+
+status
+
+created_at
+三十三、feedback
+
+至少支持：
+
+not_interested
+
+content_interesting
+
+learn_more
+
+want_to_meet
+
+不要把：
+
+“喜欢内容”
+
+和：
+
+“想认识作者”
+
+混为一谈。
+
+这是产品非常重要的实验指标。
+
+三十四、API 设计
+
+建议：
+
+GET /api/auth/zhihu
+GET /api/auth/zhihu/callback
+
+GET /api/me
+GET /api/me/profile
+POST /api/me/current-state
+
+POST /api/profile/analyze
+
+GET /api/encounters
+GET /api/encounters/:id
+
+POST /api/encounters/:id/feedback
+
+POST /api/encounters/:id/want-to-meet
+
+GET /api/connections
+
+根据现有项目框架调整。
+
+三十五、知乎 API 使用原则
+
+优先：
+
+官方 API
+
+包括赛事提供：
+
+OAuth
+Search API
+用户授权数据接口
+
+不要第一时间使用 MediaCrawler。
+
+只有官方能力无法完成某个明确需求时再考虑补充。
+
+所有 Access Secret：
+
+只允许服务器端使用
+
+绝不能放：
+
+浏览器前端
+Git仓库
+三十六、LLM 成本策略
+
+比赛提供约：
+
+$500 Token/API 报销额度。
+
+不要浪费。
+
+模型分层：
+
+Embedding Model
+
+负责：
+
+所有向量生成
+Cheap LLM
+
+负责：
+
+文章摘要
+主题提取
+长期问题提取
+Current State结构化
+基础内容分类
+Reranker
+
+负责：
+
+候选50 → 10
+Qwen3.8-Max
+
+只负责：
+
+最终Top候选深度判断
+为什么值得认识
+Content Bridge
+Conversation Bridge
+最终推荐解释
+
+不要：
+
+每次把两个人所有文章重新塞给 Qwen3.8-Max。
+
+三十七、缓存
+
+以下全部应该缓存：
+
+content summary
+
+user profile
+
+embedding
+
+anchor selection
+
+pair deep-analysis
+
+recommendation explanation
+
+同一用户、同一内容不要重复花 Token。
+
+三十八、增量更新
+
+用户新增加内容：
+
+检测新增 content_id
+↓
+只处理新内容
+↓
+更新向量
+↓
+必要时重新汇总 Profile
+
+不要：
+
+每天重新理解过去300篇文章。
+
+三十九、第一阶段开发顺序
+
+严格按照下面顺序。
+
+Phase 0：项目检查
+
+首先检查：
+
+现有代码
+README
+package.json
+.env
+数据库
+已有知乎API
+已有OAuth能力
+
+不要在不知道现有项目结构的情况下重构全部代码。
+
+输出：
+
+IMPLEMENTATION_PLAN.md
+四十、Phase 1：先做假的完整体验
+
+在任何复杂推荐算法之前：
+
+使用：
+
+3～10个 Mock Users
+
+完成完整用户路径：
+
+Landing
+↓
+AI理解
+↓
+Encounter
+↓
+内容
+↓
+为什么推荐
+↓
+了解作者
+↓
+想认识
+↓
+双向连接
+
+目标：
+
+先证明 UI / UX 好不好玩。
+
+不要一开始花一天调 Embedding。
+
+四十一、Phase 2：知乎 OAuth
+
+接入官方 OAuth。
+
+做到：
+
+登录
+↓
+callback
+↓
+创建用户
+↓
+Session
+↓
+显示基本知乎信息
+四十二、Phase 3：用户内容获取
+
+接入官方允许的数据。
+
+测试：
+
+能够获取哪些内容
+是否完整正文
+是否分页
+历史长度
+字段结构
+
+生成：
+
+docs/ZHIHU_API_FINDINGS.md
+
+明确记录官方 API 能力边界。
+
+四十三、Phase 4：Profile Pipeline
+
+实现：
+
+raw content
+↓
+clean
+↓
+chunk
+↓
+summarize
+↓
+extract profile
+↓
+embedding
+↓
+save
+四十四、Phase 5：Matching MVP
+
+先实现：
+
+Hard Filter
++
+pgvector Recall
++
+simple weighted score
+
+不要一开始就训练机器学习模型。
+
+完成：
+
+User A
+↓
+返回 Top 10 Candidates
+四十五、Phase 6：Content Bridge
+
+对候选 B：
+
+找到B所有Anchor
+↓
+A Profile查询
+↓
+选择最适合A的一篇
+
+输出：
+
+recommended_content
+reason
+四十六、Phase 7：Conversation Bridge
+
+Qwen3.8-Max 接收：
+
+A Profile
+B Profile
+A representative contents
+B representative contents
+
+生成：
+
+shared_ground
+
+interesting_difference
+
+conversation_question
+
+必须严格引用现有内容。
+
+不要编造两人观点。
+
+四十七、Phase 8：Mutual Intent
+
+实现：
+
+A want B
+B want A
+↓
+connection
+
+如果单边：
+
+不展示对方完整身份。
+
+四十八、Phase 9：Current State / 侧面
+
+如果前面顺利完成再加入。
+
+第一版只需要：
+
+“今天想聊什么？”
+
+一个输入框。
+
+然后生成：
+
+current_state_embedding
+
+加入推荐权重。
+
+四十九、Phase 10：动画与比赛展示
+
+最后再做：
+
+Loading动画
+卡片转场
+Content → Person Reveal
+双向成功动画
+精致 Landing
+Demo数据
+手机适配
+
+不要在核心流程没通之前花大量时间做动画。
+
+五十、Hackathon UI 风格
+
+要求：
+
+简洁
+安静
+不像传统婚恋网站
+不像数据后台
+不左右滑
+不大量头像墙
+内容优先
+人逐渐出现
+留白丰富
+有一定知乎蓝视觉关联，但不要完全复制知乎
+
+Mobile First。
+
+桌面端需要适合：
+
+比赛现场大屏展示。
+
+五十一、关键“魔法时刻”
+
+必须重点设计：
+
+用户第一次看到一个陌生人的文章。
+
+AI解释：
+
+为什么是这个人。
+
+用户阅读以后产生：
+
+“写这个的人是谁？”
+
+这是整个产品成功与否最重要的瞬间。
+
+五十二、核心实验指标
+
+记录：
+
+recommendation_impressions
+
+content_open_rate
+
+content_interesting_rate
+
+learn_more_author_rate
+
+want_to_meet_rate
+
+mutual_connection_rate
+
+其中最重要：
+
+Person Curiosity Rate
+
+即：
+
+想进一步了解作者
+÷
+看到推荐内容
+
+因为：
+
+Content Interest ≠ Person Curiosity。
+
+五十三、第一版不追求的问题
+
+不要浪费时间：
+
+推荐系统绝对准确
+百万用户架构
+完整安全治理后台
+大规模私信
+复杂关系图
+商业化
+付费
+会员
+广告
+原生APP
+Android
+iOS
+微信小程序
+
+这次目标：
+
+验证产品体验与新意。
+
+五十四、比赛 Demo 建议准备
+
+准备：
+
+20～50个测试/模拟Profile
+
+最好包含：
+
+不同专业
+不同兴趣
+不同长期内容
+不同人生阶段
+不同此刻状态
+
+避免所有人：
+
+AI / 编程 / 产品
+
+导致匹配毫无惊喜。
+
+五十五、Demo 场景
+
+建议至少准备三个。
+
+Demo A：跨主题连接
+
+A：
+
+AI / 投资 / 产品
+
+B：
+
+摄影 / 旅行 / 职业
+
+但两人都长期思考：
+
+自由 vs 稳定。
+
+证明：
+
+AI发现的不是简单 Topic Similarity。
+
+Demo B：此刻状态
+
+A长期和B长期只有中等相关。
+
+但两人今天都在说：
+
+最近想出去走走。
+
+证明：
+
+Present Self 可以改变推荐。
+
+Demo C：内容喜欢但不想认识
+
+用户：
+
+内容有意思
+
+但：
+
+不继续了解作者。
+
+证明系统能够区分：
+
+Content Interest
+≠
+Person Curiosity
+五十六、比赛 Pitch 核心表达
+
+推荐：
+
+知乎已经帮助我们找到值得看的内容。
+
+但每一篇内容背后，还有一个人。
+
+过去，这些人与人的连接往往依赖偶然：
+
+你偶然刷到他的回答，
+偶然点进主页，
+偶然发现“这个人好像挺有意思”。
+
+我们想做一个实验：
+
+如果 AI 不只理解内容，还能理解一个人长期留下的思想轨迹，它能不能帮你发现一个原本永远不会认识、但真的值得聊一句的人？
+
+所以我们做了：
+
+遇见
+五十七、项目长期可能发展
+
+Hackathon之后，如果验证成功：
+
+长期内容
++
+侧面
++
+Current State
++
+Connection Intent
++
+真人行为反馈
+
+可以逐渐形成：
+
+Human Discovery Engine
+
+以后不仅用于：
+
+朋友
+恋爱
+同好
+
+还可以：
+
+找合作伙伴
+找同行
+找导师
+找学生
+找户外伙伴
+找创业伙伴
+找讨论对象
+
+但这些不是第一版本任务。
+
+五十八、工程原则
+
+开发过程中必须遵守：
+
+1. 优先让核心路径能跑
+
+不要过度工程。
+
+2. 先 Mock，再接真实 API
+
+不要因为 OAuth 卡住导致整个产品没有 Demo。
+
+3. 所有外部 API 做 Adapter
+
+例如：
+
+ZhihuProvider
+LLMProvider
+EmbeddingProvider
+RerankProvider
+
+方便替换。
+
+4. 所有 AI 输出使用 Schema Validation
+
+不要直接相信自由 JSON。
+
+推荐：
+
+Zod / Pydantic
+5. AI失败必须有 fallback
+
+推荐结果不能因为某次模型 JSON 错误就整个页面崩掉。
+
+6. API Key只放服务器。
+7. 保留日志
+
+至少记录：
+
+模型
+token
+latency
+错误
+prompt version
+
+方便黑客松快速调试。
+
+五十九、建议目录
+
+如果使用 Next.js：
+
+app/
+
+  page.tsx
+
+  encounter/
+  encounter/[id]/
+  connections/
+  me/
+
+  api/
+    auth/
+    profile/
+    encounter/
+    connection/
+
+components/
+
+  encounter/
+  profile/
+  content/
+  common/
+
+lib/
+
+  zhihu/
+    client.ts
+    oauth.ts
+
+  ai/
+    profile.ts
+    matcher.ts
+    bridge.ts
+
+  retrieval/
+    vector.ts
+    ranking.ts
+
+  db/
+
+  schemas/
+
+prisma/
+or
+drizzle/
+
+docs/
+
+  PRODUCT.md
+  ARCHITECTURE.md
+  ZHIHU_API_FINDINGS.md
+  MATCHING.md
+
+如果已有技术栈，请优先复用，不要为了符合此目录强制重构。
+
+六十、最终交付物
+
+至少完成：
+
+可运行 Web Demo
+
+能够走完整：
+
+登录
+→ 理解
+→ 遇见
+→ 内容
+→ 为什么推荐
+→ 继续了解
+→ 想认识
+→ 双向成功
+README.md
+
+说明：
+
+如何安装
+环境变量
+数据库
+API
+如何运行
+PRODUCT.md
+
+产品逻辑。
+
+ARCHITECTURE.md
+
+技术架构。
+
+MATCHING.md
+
+匹配算法。
+
+ZHIHU_API_FINDINGS.md
+
+知乎接口实测。
+
+DEMO_SCRIPT.md
+
+比赛演示脚本。
+
+六十一、验收标准
+
+MVP成功标准：
+
+A
+
+一个第一次见到项目的人：
+
+30秒内知道它是什么。
+
+B
+
+用户无需填写复杂资料即可进入。
+
+C
+
+至少能够生成一份合理的 Content Profile。
+
+D
+
+至少能够从测试用户池返回不同类型候选。
+
+E
+
+推荐能够解释：
+
+为什么是TA？
+
+F
+
+推荐能够选：
+
+TA的哪篇内容最适合给我看？
+
+G
+
+能够产生：
+
+一个真正与双方内容相关的Conversation Bridge。
+
+H
+
+能够区分：
+
+喜欢内容
+和
+想认识作者
+I
+
+实现双向确认。
+
+J
+
+手机与桌面都可以正常体验。
+
+六十二、开发执行要求
+
+现在开始执行时：
+
+先检查现有仓库；
+不要立即重构；
+写 IMPLEMENTATION_PLAN.md；
+明确已有能力和缺失能力；
+用 Mock 数据先跑完整产品闭环；
+然后接知乎 OAuth/API；
+再实现 AI Profile；
+再实现向量检索；
+最后增加 Reranker 和高级匹配；
+UI润色放最后。
+
+每完成一个 Phase：
+
+实际运行；
+检查错误；
+不要只写代码不测试；
+更新开发文档；
+再继续下一阶段。
+
+如果某个知乎 API 权限不可用：
+
+不要停工。
+
+做 Provider abstraction：
+
+RealZhihuProvider
+MockZhihuProvider
+
+保证 Hackathon Demo 始终可以运行。
+
+最终产品原则
+
+始终记住：
+
+我们不是在开发一个新的 Tinder。
+
+也不是：
+
+给两个人计算一个神秘匹配分。
+
+我们想探索的是：
+
+AI 能不能从一个人长期留下的内容中，发现一个他原本不会遇见的人；再用一篇内容和一个问题，让两个人产生一次自然、低压力、值得继续的交流。
+
+如果一个功能不能明显帮助这件事情：
+
+第一版不要做。
+
+最终一句话
+遇见
+
+发现一个值得聊一句的人。
+
+核心链路：
+
+长期的我
++
+此刻的我
++
+愿意连接的我
+        ↓
+       AI
+        ↓
+发现一个值得认识的人
+        ↓
+找到最适合让我认识TA的一篇内容
+        ↓
+找到一个值得开始的问题
+        ↓
+双方都愿意
+        ↓
+真正遇见

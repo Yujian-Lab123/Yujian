@@ -1,0 +1,65 @@
+# 遇见
+
+> 发现一个值得聊一句的人。
+> 知乎已经帮你发现值得看的内容；遇见帮你通过内容，发现一个值得聊一句的人。
+
+知乎 Hackathon 项目 · Next.js 16 + PostgreSQL 团队开发基座。
+
+## 快速开始
+
+```bash
+git clone https://github.com/Yujian-Lab123/Yujian.git
+cd Yujian
+npm ci
+npm run bootstrap
+npm run dev            # http://localhost:3000
+```
+
+要求 Node.js 24、Git 和 Docker Desktop。`bootstrap` 会启动 PostgreSQL、执行 Drizzle 迁移并写入 10 个 Mock 用户 / 27 篇内容；可安全重复执行。Next.js 与画像 Worker 由 `npm run dev` 同时启动。
+点击「使用知乎继续」即可以演示身份（江树 · 产品经理）体验完整闭环：
+
+Landing → AI 理解 → 推荐（今天想先给你看一篇东西）→ 看看 TA 怎么想 → 我有点想认识 TA → 双向成功 → 已遇见。
+
+## 环境变量（全部可选，留空即 Mock）
+
+复制 `.env.example` 为 `.env.local`：
+
+- `LLM_BASE_URL / LLM_API_KEY / LLM_MODEL`：OpenAI 兼容 chat；当前画像管线默认以 `qwen3.7-flash` 逐批解析、`qwen3.8-flash` 最终汇总。密钥只放 `.env.local`；
+- `EMBED_BASE_URL / EMBED_API_KEY / EMBED_MODEL / EMBED_DIMENSIONS`：P4 生成真实向量，P5 同步到 pgvector 并以 HNSW 多路召回；当前索引固定 `EMBED_DIMENSIONS=1024`，未配置或索引未就绪时自动回退 Mock；
+- `RERANK_BASE_URL / RERANK_API_KEY / RERANK_MODEL / RERANK_API_STYLE`：P6 对粗排 Top-N 使用 Qwen 结构化画像精排；建议 `qwen3-rerank + compatible`，未配置或调用失败时整批回退 Mock；
+- `ZHIHU_APP_ID / ZHIHU_OAUTH_APP_KEY / ZHIHU_ACCESS_SECRET / ZHIHU_REDIRECT_URI`：真实知乎 OAuth（P2 代码已接入）。四个变量齐备后，Landing 自动显示「使用知乎账号登录」。真实登录必须公网 HTTPS 部署且回调与开放平台登记值完全一致（本地 localhost 无法完成知乎登录）；联调诊断见 `GET /api/auth/zhihu/status`（脱敏输出）。
+- `APP_ORIGIN`：反向代理后部署时的对外 origin，用于 OAuth 回调后的跳转。
+
+## 文档
+
+- `CONTRIBUTING.md`：分支、PR、Agent 与安全规范
+- `docs/DEVELOPMENT.md`：Clone、启动、测试和故障排查
+- `docs/STRUCTURE.md`：目录导览与新成员阅读顺序
+- `docs/OWNERSHIP.md`：A/B/C/D 的文件所有权与共享冻结区
+- `docs/workstreams/`：四名成员各自的交付和验收边界
+- `docs/API_CONTRACTS.md`：跨模块稳定接口
+- `IMPLEMENTATION_PLAN.md`：能力清单与 Phase 计划
+- `docs/ARCHITECTURE.md`：技术架构与安全边界
+- `docs/MATCHING.md`：匹配算法与 Demo 复现
+- `docs/PRODUCT.md`：产品逻辑
+- `docs/PROFILE_ENGINE.md`：人物画像分析引擎（爬虫验证线：六维画像 + 证据可溯）
+- `docs/workstreams/P5-PGVECTOR-RETRIEVAL.md`：pgvector 数据契约、ANN 链路、启用与验收边界
+- `docs/workstreams/P6-RERANKER.md`：Qwen Reranker 协议、输入边界、降级与验收
+- `docs/workstreams/P7-MOTION-DISPLAY.md`：水墨加载、卡片转场、人物揭示、双向成功动画与手机适配
+- `总体概览.txt`：产品总说明（上游需求）
+
+## 质量门
+
+```bash
+npm run check
+npm run audit:prod
+```
+
+所有 PR 必须通过 lint、typecheck、test 和 build。禁止提交 `.env.local`、Cookie、`browser_data/`、爬虫数据或画像产物。
+
+## 演示提示
+
+- 「我的」页可切换演示身份、写此刻状态（触发「此刻遇见」置顶）、开关遇见。
+- Demo A：江树首推陈默（跨主题：自由与稳定）；Demo B：写“想出去走走”→ 阿屿置顶。
+- P7 动效支持系统“减少动态效果”偏好；演示时推荐依次展示 AI 理解加载、推荐换卡、人物揭示与双向成功四个节点。
+- 未安装项目依赖时，可运行 `node scripts/serve-p7-preview.mjs`，打开 `http://127.0.0.1:4173` 查看 P7 三场景交互 Mock。

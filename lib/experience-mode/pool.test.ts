@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { filterCardsByMockIds } from './pool';
-import { SESSION_COOKIE_REAL, SESSION_COOKIE_DEMO } from './session';
+import { filterCardsByMockIds } from './pool-filter';
+import { SESSION_COOKIE_REAL, SESSION_COOKIE_DEMO } from './cookies';
 
 /** 数据隔离：真实池不出现 Mock 用户，演示池不出现真实用户。 */
 function card(id: string) {

@@ -24,7 +24,7 @@ describe('experience-mode demo identity', () => {
   });
 
   it('rotates across days', () => {
-    const picks = new Set<string>();
+    const picks = new Set<string | null>();
     for (let day = 0; day < 9; day++) {
       picks.add(pickDemoIdentity(pool, new Date(Date.UTC(2026, 8, 13) + day * 86_400_000)));
     }

@@ -1,4 +1,5 @@
 import path from 'node:path';
+import Link from 'next/link';
 import { listArtifacts, listCrawlerInputs, readArtifactFile, resolveLocalAvatar } from '@/lib/profile/store';
 import { getProfileArtifact, getLatestProfileArtifactForUser, listProfileArtifacts } from '@/lib/profile/repository';
 import { getDemoSessionUserId } from '@/lib/experience-mode/session';
@@ -18,7 +19,7 @@ export default async function DemoProfilePage() {
         <div className="text-center">
           <p className="font-display text-2xl text-[#173e70]">尚未进入演示模式</p>
           <p className="mt-3 text-sm text-[#77859a]">请先从演示入口开始体验。</p>
-          <a href="/demo" className="mt-5 inline-block rounded-lg bg-[#173e70] px-6 py-2.5 text-sm text-white">前往演示入口</a>
+          <Link href="/demo" className="mt-5 inline-block rounded-lg bg-[#173e70] px-6 py-2.5 text-sm text-white">前往演示入口</Link>
         </div>
       </main>
     );
@@ -48,7 +49,7 @@ export default async function DemoProfilePage() {
           <div className="text-center">
             <p className="font-display text-2xl text-[#173e70]">演示画像正在路上</p>
             <p className="mt-3 text-sm text-[#77859a]">预置身份的画像由演示数据生成，稍后即可查看。</p>
-            <a href="/demo/encounter" className="mt-5 inline-block rounded-lg bg-[#173e70] px-6 py-2.5 text-sm text-white">先去遇见看看</a>
+            <Link href="/demo/encounter" className="mt-5 inline-block rounded-lg bg-[#173e70] px-6 py-2.5 text-sm text-white">先去遇见看看</Link>
           </div>
         </main>
       )}

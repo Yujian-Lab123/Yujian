@@ -15,8 +15,8 @@ import { SESSION_MAX_AGE_SECONDS, createSession, sessionCookieOptions } from '@/
  *   也会拒绝——身份永远跟随「哪个 Cookie + 该 Cookie 绑定的用户类型」。
  */
 
-export const SESSION_COOKIE_REAL = 'yj_session';
-export const SESSION_COOKIE_DEMO = 'yj_demo_session';
+export { SESSION_COOKIE_REAL, SESSION_COOKIE_DEMO } from './cookies';
+import { SESSION_COOKIE_DEMO as DEMO_COOKIE, SESSION_COOKIE_REAL as REAL_COOKIE } from './cookies';
 
 export type ExperienceMode = 'real' | 'demo';
 
@@ -42,19 +42,19 @@ async function loadSessionUser(cookieName: string, expectMock: boolean): Promise
 
 /** 真实模式身份：只认 yj_session，且用户必须是真实账号（is_mock=0）。 */
 export async function getRealSessionUserId(): Promise<string | null> {
-  const identity = await loadSessionUser(SESSION_COOKIE_REAL, false);
+  const identity = await loadSessionUser(REAL_COOKIE, false);
   return identity?.userId ?? null;
 }
 
 /** 演示模式身份：只认 yj_demo_session，且用户必须是 Mock 账号（is_mock=1）。 */
 export async function getDemoSessionUserId(): Promise<string | null> {
-  const identity = await loadSessionUser(SESSION_COOKIE_DEMO, true);
+  const identity = await loadSessionUser(DEMO_COOKIE, true);
   return identity?.userId ?? null;
 }
 
 /** 当前请求是否携带有效的演示会话（用于真实 API 对演示用户的产品化引导）。 */
 export async function hasDemoSession(): Promise<boolean> {
-  return (await loadSessionUser(SESSION_COOKIE_DEMO, true)) !== null;
+  return (await loadSessionUser(DEMO_COOKIE, true)) !== null;
 }
 
 /** 创建演示会话并返回 Cookie 赋值所需信息（复用 sessions 表，靠 Cookie 名隔离）。 */

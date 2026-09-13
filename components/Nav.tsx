@@ -68,9 +68,19 @@ export default function Nav({ tone, tagline, right }: { tone: 'blue' | 'warm'; t
 
           {right ?? (
             <Link href={isDemo ? '/demo/me' : '/me'} className="flex shrink-0 items-center gap-2 text-[#173e70]" aria-label={isDemo ? '打开演示我的页面' : '打开我的页面'}>
-              <span className="grid h-9 w-9 place-items-center rounded-full border border-[#c8b998]/70 bg-[#e6dcc9] font-display text-sm">
-                {isDemo ? '演' : me.loggedIn ? me.user?.name?.slice(0, 1) : '遇'}
-              </span>
+              {!isDemo && me.loggedIn && me.user?.avatarUrl ? (
+                // 真实登录后优先显示知乎头像；加载失败或未登录时回退到姓名首字
+                <img
+                  src={String(me.user.avatarUrl)}
+                  alt={String(me.user?.name || '头像')}
+                  referrerPolicy="no-referrer"
+                  className="h-9 w-9 rounded-full border border-[#c8b998]/70 object-cover"
+                />
+              ) : (
+                <span className="grid h-9 w-9 place-items-center rounded-full border border-[#c8b998]/70 bg-[#e6dcc9] font-display text-sm">
+                  {isDemo ? '演' : me.loggedIn ? me.user?.name?.slice(0, 1) : '遇'}
+                </span>
+              )}
               <CaretDownIcon size={14} aria-hidden />
             </Link>
           )}

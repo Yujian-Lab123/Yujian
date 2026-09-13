@@ -41,6 +41,7 @@ Landing → AI 理解 → 推荐（今天想先给你看一篇东西）→ 看�
 - `IMPLEMENTATION_PLAN.md`：能力清单与 Phase 计划
 - `docs/ARCHITECTURE.md`：技术架构与安全边界
 - `docs/MATCHING.md`：匹配算法与 Demo 复现
+- `docs/CURRENT_STATE_PRIVACY.md`：“此刻”结构化匹配、私密记录处理与旧数据兼容边界
 - `docs/PRODUCT.md`：产品逻辑
 - `docs/PROFILE_ENGINE.md`：人物画像分析引擎（爬虫验证线：六维画像 + 证据可溯）
 - `docs/workstreams/P5-PGVECTOR-RETRIEVAL.md`：pgvector 数据契约、ANN 链路、启用与验收边界
@@ -59,7 +60,7 @@ npm run audit:prod
 
 ## 演示提示
 
-- 「我的」页可切换演示身份、写此刻状态（触发「此刻遇见」置顶）、开关遇见。
-- Demo A：江树首推陈默（跨主题：自由与稳定）；Demo B：写“想出去走走”→ 阿屿置顶。
+- 「我的」页可切换演示身份、选择结构化此刻标签（触发「此刻遇见」置顶）、开关遇见；选填自由文本只临时交给 LLM，原文不保存或展示。
+- Demo A：江树首推陈默（跨主题：自由与稳定）；Demo B：选择“疲惫 / 想走走 / 找同伴”→ 阿屿置顶。
 - P7 动效支持系统“减少动态效果”偏好；演示时推荐依次展示 AI 理解加载、推荐换卡、人物揭示与双向成功四个节点。
 - 未安装项目依赖时，可运行 `node scripts/serve-p7-preview.mjs`，打开 `http://127.0.0.1:4173` 查看 P7 三场景交互 Mock。

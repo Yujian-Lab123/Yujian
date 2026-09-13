@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { setCurrentState } from '@/lib/db';
-import { getSessionUserId } from '@/lib/session';
+import { getRealSessionUserId } from '@/lib/experience-mode/session';
 import { validateRecord } from '@/lib/present-self/record';
 
 export async function POST(req: Request) {
-  const uid = await getSessionUserId();
+  const uid = await getRealSessionUserId();
   if (!uid) return NextResponse.json({ ok: false, loginRequired: true }, { status: 401 });
   let record;
   try {

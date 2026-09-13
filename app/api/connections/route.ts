@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import { desc, eq, or, and } from 'drizzle-orm';
 import { connectionIntents, connections, db } from '@/lib/db';
 import { getUser } from '@/lib/db/users';
-import { getSessionUserId } from '@/lib/session';
+import { getRealSessionUserId } from '@/lib/experience-mode/session';
 
 export async function GET() {
-  const userId = await getSessionUserId();
+  const userId = await getRealSessionUserId();
   if (!userId) return NextResponse.json({ ok: false, loginRequired: true }, { status: 401 });
   const [mutualRows, pendingRows] = await Promise.all([
     db.select().from(connections).where(or(eq(connections.userA, userId), eq(connections.userB, userId))).orderBy(desc(connections.createdAt)),

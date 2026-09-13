@@ -4,13 +4,13 @@ import { and, eq, or, sql } from 'drizzle-orm';
 import { db, connectionIntents, connections, feedback } from '@/lib/db';
 import { getUser } from '@/lib/db/users';
 import { getRec } from '@/lib/retrieval/matcher';
-import { getSessionUserId } from '@/lib/session';
+import { getRealSessionUserId } from '@/lib/experience-mode/session';
 
 // 双向确认：A 点击“想认识”后只产生 A→B 单向意愿；
 // 只有 B→A 也存在才成立。Demo 阶段部分 Mock 用户会自动 reciprocate。
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  const uid = await getSessionUserId();
+  const uid = await getRealSessionUserId();
   if (!uid) return NextResponse.json({ ok: false, loginRequired: true }, { status: 401 });
   const rec = await getRec(id);
   if (!rec || rec.viewer_id !== uid) return NextResponse.json({ ok: false, error: '推荐不存在' }, { status: 404 });

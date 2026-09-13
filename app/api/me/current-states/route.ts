@@ -2,10 +2,10 @@ import { and, desc, eq, gte, lt } from 'drizzle-orm';
 import { type NextRequest, NextResponse } from 'next/server';
 import { currentStates, db } from '@/lib/db';
 import { monthBounds, parseMonthKey, shanghaiMonthKey } from '@/lib/present-self/history';
-import { getSessionUserId } from '@/lib/session';
+import { getRealSessionUserId } from '@/lib/experience-mode/session';
 
 export async function GET(request: NextRequest) {
-  const userId = await getSessionUserId();
+  const userId = await getRealSessionUserId();
   if (!userId) {
     return NextResponse.json({ ok: false, loginRequired: true }, { status: 401 });
   }

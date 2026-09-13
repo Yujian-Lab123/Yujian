@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import path from 'node:path';
 import { startProfileJob } from '@/lib/profile/jobs';
-import { getSessionUserId } from '@/lib/session';
+import { getRealSessionUserId } from '@/lib/experience-mode/session';
 
 export const dynamic = 'force-dynamic';
 
 // POST /api/profile/generate —— 启动画像生成后台任务 {file, name, maxItems?, maxChars?}
 export async function POST(req: Request) {
-  const userId = await getSessionUserId();
+  const userId = await getRealSessionUserId();
   if (!userId) return NextResponse.json({ ok: false, loginRequired: true }, { status: 401 });
   let body: { file?: string; name?: string; maxItems?: number; maxChars?: number };
   try {

@@ -103,7 +103,7 @@ export default function EncounterPage() {
       )}
 
       {loaded && !card && (
-        <p className="mx-auto max-w-lg px-6 pt-20 text-center leading-7 text-sumi-500">今天暂时没有新的遇见。去「我的」写一句此刻状态，会让遇见更准。</p>
+        <p className="mx-auto max-w-lg px-6 pt-20 text-center leading-7 text-sumi-500">今天暂时没有新的遇见。去「我的」选择几个此刻标签，会让遇见更准。</p>
       )}
 
       {card && (
@@ -118,7 +118,7 @@ export default function EncounterPage() {
           <p className="fade-up-1 mt-3 text-sumi-500">一篇 TA 写的真实经历或思考，也许能让你们的遇见更有意义。</p>
           {card.moment && (
             <p className="fade-up-1 mt-3 inline-block rounded-full bg-gold-500/15 px-4 py-1.5 text-sm text-gold-600">
-              ✨ 此刻遇见：你们现在，可能正想着同一件事
+              ✨ 此刻遇见：基于双方选择的此刻标签，你们现在的状态有一些重合
             </p>
           )}
 

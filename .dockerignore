@@ -4,6 +4,8 @@ out
 .git
 .workbuddy
 .github
+.tmp-worktrees
+.codex
 browser_data
 data
 media-crawler
@@ -11,6 +13,7 @@ audit-output
 profile-output
 design-qa
 zhihu-hackathon
+scripts/article-aiwork.txt
 .env*
 *.tsbuildinfo
 next-env.d.ts

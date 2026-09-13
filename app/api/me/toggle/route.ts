@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getUser, setEncounterEnabled } from '@/lib/db/users';
-import { getSessionUserId } from '@/lib/session';
+import { getRealSessionUserId } from '@/lib/experience-mode/session';
 
 export async function POST(req: Request) {
-  const uid = await getSessionUserId();
+  const uid = await getRealSessionUserId();
   if (!uid) return NextResponse.json({ ok: false, loginRequired: true }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   if (!body || typeof body.enabled !== 'boolean') {

@@ -107,17 +107,8 @@ export default function AboutPage() {
 
   const enter = async () => {
     if (me.loggedIn) return router.push('/encounter');
-    setBusy(true);
-    try {
-      await fetch('/api/auth/demo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      router.push('/onboarding');
-    } catch {
-      setBusy(false);
-    }
+    // 演示体验走独立的 /demo 路由与会话（与真实账号完全隔离）。
+    router.push('/demo');
   };
 
   return (

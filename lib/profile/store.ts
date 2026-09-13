@@ -58,15 +58,35 @@ export function saveArtifactFiles(artifact: ProfileArtifact, outDir: string): { 
 
 export interface ArtifactSummary { slug: string; name: string; contentCount: number; generatedAt: string; timeRange: string | null; mtime: string }
 
-export function listArtifacts(outDir: string): ArtifactSummary[] {
+/**
+ * 调试/对比用产物不该出现在展示端的切换列表里。
+ *
+ * 这些文件是调参过程中的中间产物（字数截断对比、小模型冒烟、虚构样本），
+ * 保留在磁盘上供比对，但不作为正式画像对外展示。
+ * 用显式模式匹配而不是宽泛通配，避免误伤真实用户 slug。
+ */
+const DEBUG_ARTIFACT_PATTERNS: RegExp[] = [
+  /-smoke$/i,             // 冒烟测试产物（含 -qwen-smoke）
+  /-\d+字$/,              // 字数截断对比（YY硕-6000字）
+  /^林一舟\(测试样本\)$/,   // 虚构测试样本
+  /^sample-/i,
+];
+
+export function isDebugArtifact(slug: string): boolean {
+  return DEBUG_ARTIFACT_PATTERNS.some((re) => re.test(slug));
+}
+
+export function listArtifacts(outDir: string, options: { includeDebug?: boolean } = {}): ArtifactSummary[] {
   if (!fs.existsSync(outDir)) return [];
   const out: ArtifactSummary[] = [];
   for (const f of fs.readdirSync(outDir)) {
     if (!f.endsWith('.profile.json')) continue;
+    const slug = f.replace(/\.profile\.json$/, '');
+    if (!options.includeDebug && isDebugArtifact(slug)) continue;
     try {
       const a = JSON.parse(fs.readFileSync(path.join(outDir, f), 'utf8')) as ProfileArtifact;
       out.push({
-        slug: f.replace(/\.profile\.json$/, ''),
+        slug,
         name: a.subject?.name || f,
         contentCount: a.meta?.content_count ?? 0,
         generatedAt: a.meta?.generated_at || '',
@@ -122,9 +142,13 @@ export function listCrawlerInputs(dataDir: string): CrawlerInput[] {
   const out: CrawlerInput[] = [];
   for (const f of fs.readdirSync(dataDir)) {
     if (!f.endsWith('.json')) continue;
+    // 点开头的都是引擎自建的缓存/中间态（.extract-cache*.json），不是用户投放的采集结果。
+    // 放进去只会给"生成画像"下拉框添乱（count=0，点了必然失败）。
+    if (f.startsWith('.')) continue;
     try {
       const parsed = JSON.parse(fs.readFileSync(path.join(dataDir, f), 'utf8'));
       const items: unknown[] = Array.isArray(parsed) ? parsed : [parsed?.contents, parsed?.items, parsed?.data].find(Array.isArray) || [];
+      if (items.length === 0) continue; // 空壳文件没有生成价值
       const dated = items.map((x: any) => Number(x?.published_at ?? x?.created_time ?? 0)).filter((n) => n > 0);
       const fmt = (n: number) => new Date(n * (n > 1e12 ? 1 : 1000)).toISOString().slice(0, 10);
       out.push({

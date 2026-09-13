@@ -45,7 +45,7 @@ export default function EncounterPage() {
       )}
 
       {card && (
-        <section className="relative z-10 mx-auto max-w-6xl px-6 pb-20">
+        <section className="mo-page-in relative z-10 mx-auto max-w-6xl px-6 pb-20">
           <div className="flex items-baseline justify-between gap-4">
             <h1 className="fade-up font-display text-4xl text-gold-600">今天想先给你看一篇东西</h1>
             <span className="fade-up hidden shrink-0 font-display text-sm text-gold-500 sm:inline">✦ 用心推荐</span>

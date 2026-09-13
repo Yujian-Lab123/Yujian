@@ -15,7 +15,10 @@
 
 | 路径 | 内容 |
 | --- | --- |
-| `page.tsx` | Landing |
+| `page.tsx` | 根路径，仅重定向到 `/about`（旧 Landing 内容已迁至 `about/`） |
+| `about/` | 产品介绍：理念、隐私边界、六维说明、登录入口 |
+| `loading.tsx` | 路由级骨架屏（各路由目录下另有自己的 loading.tsx） |
+| `motion.css` | 展示端动效工具类（与 globals.css 分离，避免动到冻结文件） |
 | `onboarding/` | 进入流程，四 facet + 核心问题 |
 | `encounter/` | 今日推荐：先给一篇内容，再给一个人 |
 | `connect/` | 双向确认成功页 |

@@ -35,7 +35,7 @@ export default function ConnectionsPage() {
       <InkScene tone="blue" side="right" />
       <Nav tone="blue" tagline="在知乎，遇见欣赏你的人" />
 
-      <section className="relative z-10 mx-auto max-w-5xl px-6 pb-24">
+      <section className="mo-page-in relative z-10 mx-auto max-w-5xl px-6 pb-24">
         {/* 头部：标题 + 统计 */}
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>

@@ -81,7 +81,7 @@ export default function ProfileCorner({
   return (
     <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2">
       {open && (
-        <div className="w-72 rounded-xl border border-[#d8d2c6] bg-white/95 p-3 shadow-lg backdrop-blur">
+        <div className="mo-expand w-72 origin-bottom-right rounded-xl border border-[#d8d2c6] bg-white/95 p-3 shadow-lg backdrop-blur">
           <div className="mb-2 flex gap-1 text-xs">
             <button
               type="button"
@@ -177,7 +177,7 @@ export default function ProfileCorner({
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? '收起画像切换' : '切换或生成人物画像'}
         aria-expanded={open}
-        className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d8d2c6] bg-white/95 text-lg text-[#2c5f8a] shadow-md backdrop-blur transition-transform hover:scale-105"
+        className="mo-breathe flex h-11 w-11 items-center justify-center rounded-full border border-[#d8d2c6] bg-white/95 text-lg text-[#2c5f8a] shadow-md backdrop-blur transition-transform duration-200 hover:scale-105"
       >
         {open ? '×' : '⇄'}
       </button>

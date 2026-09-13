@@ -11,9 +11,7 @@ audit-output
 profile-output
 design-qa
 zhihu-hackathon
-.env
-.env.local
-.env.*.local
+.env*
 *.tsbuildinfo
 next-env.d.ts
 npm-debug.log*

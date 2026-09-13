@@ -1,0 +1,323 @@
+/* ---------------------------------------------------------------------------
+ * motion.css — 展示端动效基础设施
+ *
+ * 为什么单独一个文件，而不是写进 globals.css：
+ *   AGENTS.md 把 app/globals.css 列为 frozen shared file，
+ *   动画属于"纯新增"而非"修改既有规则"，独立成文件可以完全绕开冻结约束，
+ *   队友无感，也更容易单独回滚。
+ *
+ * 设计语言：藤蔓生长。
+ *   进页时画面像植物一样长出来 —— 头像是根，连接线是茎（描边生长），
+ *   各区块是叶（线长到哪，哪浮现）。之后流光沿线循环（养分输送）。
+ * ------------------------------------------------------------------------- */
+
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --dur-fast: 280ms;
+  --dur-base: 460ms;
+  --dur-slow: 640ms;
+
+  /* 藤蔓时序：线从 420ms 开始长，每条 110ms 阶梯 */
+  --vine-start: 420ms;
+  --vine-step: 110ms;
+  --vine-grow: 900ms;
+}
+
+/* ------------------------------- keyframes ------------------------------- */
+
+/* 页面/区块进场：上浮 + 淡入 */
+@keyframes moRise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* 横向进场 */
+@keyframes moSlideIn {
+  from {
+    opacity: 0;
+    transform: translate3d(-14px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* 纯淡入 */
+@keyframes moFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 页面内容区进场（导航固定，内容切换时的过渡） */
+@keyframes moPageIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* 头像入场：根部落土，轻微回弹放大 */
+@keyframes moPortraitIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 骨架屏脉冲 */
+@keyframes moShimmer {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+/* 展开内容 */
+@keyframes moExpand {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* 悬浮呼吸 */
+@keyframes moBreathe {
+  0%,
+  100% {
+    box-shadow: 0 8px 24px rgba(23, 62, 112, 0.16);
+  }
+  50% {
+    box-shadow: 0 12px 34px rgba(23, 62, 112, 0.28);
+  }
+}
+
+/*
+ * 连接线：流光沿线跑。
+ * 周期 --flow-cycle 由 JS 按线长写入（len*1.14），亮段 --flow-dash（len*0.14），
+ * 一段光从头跑到尾再循环 —— 长线慢、短线快，像养分沿藤蔓输送。
+ */
+@keyframes moFlow {
+  to {
+    stroke-dashoffset: calc(-1 * var(--flow-cycle, 620));
+  }
+}
+
+/* 连接线：描边生长（藤蔓抽条） */
+@keyframes moDraw {
+  from {
+    stroke-dashoffset: var(--dash-len, 700);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* 时间轴节点：当前点的呼吸圈 */
+@keyframes moNodePulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(49, 93, 141, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(49, 93, 141, 0);
+  }
+}
+
+/* 中央头像：光环呼吸（与 moPortraitIn 组合使用） */
+@keyframes moHalo {
+  0%,
+  100% {
+    box-shadow: 0 0 0 7px rgba(247, 239, 225, 0.78), 0 14px 32px rgba(112, 86, 46, 0.1), 0 0 0 0 rgba(169, 131, 74, 0.18);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(247, 239, 225, 0.78), 0 16px 38px rgba(112, 86, 46, 0.14), 0 0 0 14px rgba(169, 131, 74, 0);
+  }
+}
+
+/* ------------------------------- utilities ------------------------------- */
+
+.mo-rise {
+  animation: moRise var(--dur-base) var(--ease-out-expo) both;
+}
+
+.mo-fade {
+  animation: moFade var(--dur-base) var(--ease-soft) both;
+}
+
+.mo-slide-in {
+  animation: moSlideIn var(--dur-base) var(--ease-out-expo) both;
+}
+
+/* 页面内容区进场：导航不动，内容轻轻浮起 */
+.mo-page-in {
+  animation: moPageIn 460ms var(--ease-out-expo) both;
+}
+
+/* 头像：入场回弹 + 光环呼吸（光环延后 1.2s，等藤蔓长出来再开始） */
+.mo-portrait {
+  animation:
+    moPortraitIn 640ms var(--ease-spring) both,
+    moHalo 5.4s var(--ease-soft) 1.2s infinite;
+}
+
+.mo-expand {
+  animation: moExpand var(--dur-fast) var(--ease-spring) both;
+}
+
+/* 阶梯延迟（通用小阶梯；藤蔓时序的长延迟用 inline animationDelay 精确编排） */
+.mo-d1 { animation-delay: 80ms; }
+.mo-d2 { animation-delay: 160ms; }
+.mo-d3 { animation-delay: 240ms; }
+.mo-d4 { animation-delay: 320ms; }
+.mo-d5 { animation-delay: 400ms; }
+.mo-d6 { animation-delay: 480ms; }
+
+.mo-breathe {
+  animation: moBreathe 4.2s var(--ease-soft) infinite;
+}
+.mo-breathe:hover {
+  animation-play-state: paused;
+}
+
+/* ------------------------------- 骨架屏 ------------------------------- */
+
+.mo-skeleton {
+  background: linear-gradient(90deg, rgba(23, 62, 112, 0.06) 0%, rgba(23, 62, 112, 0.11) 50%, rgba(23, 62, 112, 0.06) 100%);
+  background-size: 200% 100%;
+  border-radius: 6px;
+  animation: moShimmer 1.6s var(--ease-soft) infinite;
+}
+
+.mo-skeleton-warm {
+  background: linear-gradient(90deg, rgba(138, 122, 92, 0.1) 0%, rgba(138, 122, 92, 0.18) 50%, rgba(138, 122, 92, 0.1) 100%);
+  background-size: 200% 100%;
+  border-radius: 6px;
+  animation: moShimmer 1.6s var(--ease-soft) infinite;
+}
+
+/* --------------------------- 画像页：连接线 --------------------------- */
+
+/*
+ * 底层（mo-draw）：淡金色的"藤条"本体，描边生长。
+ * 上层（mo-flow）：一段亮光沿线循环（流光），落在底层之上。
+ * globals.css 里 .reference-connector-graph path 的 stroke 会被下面两条更高特异性的规则覆盖。
+ */
+.reference-connector-graph .mo-draw {
+  stroke: rgba(163, 128, 74, 0.52);
+  stroke-width: 1.4;
+  animation: moDraw var(--vine-grow) var(--ease-out-quint) both;
+}
+
+.reference-connector-graph .mo-flow {
+  stroke: #c99b55;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px rgba(201, 155, 85, 0.6));
+  stroke-dasharray: var(--flow-dash, 70) var(--flow-cycle, 620);
+  animation: moFlow var(--flow-dur, 3.2s) linear infinite;
+}
+
+/* 时间轴当前节点呼吸 */
+.mo-node-pulse {
+  animation: moNodePulse 2.6s var(--ease-soft) infinite;
+}
+
+/* --------------------- 画像页：布局舒展（覆盖 globals 定值） --------------------- */
+
+/*
+ * 时间线：原版五个节点 left 18/37/56/75/91%，间隔不匀、末两个挤在一起。
+ * 改为 3/25/47/69/87.5% 均分，波浪幅度略收，区域加高，延伸更自然。
+ */
+.reference-timeline { height: 246px; }
+.reference-timeline-rail { top: 94px; height: 128px; }
+.reference-timeline-item.item-0 { left: 3%; top: -50px; }
+.reference-timeline-item.item-1 { left: 25%; top: -14px; }
+.reference-timeline-item.item-2 { left: 47%; top: -58px; }
+.reference-timeline-item.item-3 { left: 69%; top: -22px; }
+.reference-timeline-item.item-4 { left: 87.5%; top: -62px; width: 88px; }
+
+/* 区块序号徽标：hover 轻浮 */
+.reference-dimension-title > b {
+  transition: transform var(--dur-fast) var(--ease-spring), box-shadow var(--dur-fast) var(--ease-soft);
+}
+section:hover > .reference-dimension-title > b,
+.reference-evidence:hover .reference-dimension-title > b {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(49, 93, 141, 0.3);
+}
+
+/* 代表内容卡：悬浮轻抬 */
+.reference-work-row .reference-evidence {
+  transition: transform var(--dur-fast) var(--ease-out-quint), box-shadow var(--dur-fast) var(--ease-soft), border-color var(--dur-fast);
+}
+.reference-work-row .reference-evidence:hover {
+  transform: translateY(-3px);
+}
+
+/* --------------------------- 可访问性降级 --------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .mo-rise,
+  .mo-fade,
+  .mo-slide-in,
+  .mo-page-in,
+  .mo-portrait,
+  .mo-expand,
+  .mo-breathe,
+  .mo-skeleton,
+  .mo-skeleton-warm,
+  .reference-connector-graph .mo-flow,
+  .reference-connector-graph .mo-draw,
+  .mo-node-pulse {
+    animation: none !important;
+  }
+
+  .mo-rise,
+  .mo-fade,
+  .mo-slide-in,
+  .mo-page-in,
+  .mo-expand,
+  .mo-portrait {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .mo-portrait {
+    box-shadow: 0 0 0 7px rgba(247, 239, 225, 0.78), 0 14px 32px rgba(112, 86, 46, 0.1) !important;
+  }
+
+  .mo-skeleton,
+  .mo-skeleton-warm {
+    opacity: 0.75 !important;
+  }
+}

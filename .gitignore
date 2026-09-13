@@ -19,3 +19,5 @@ media-crawler/
 data/crawler/
 browser_data/
 .workbuddy/
+.tmp-worktrees/
+.codex/

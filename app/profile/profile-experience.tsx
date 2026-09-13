@@ -64,7 +64,7 @@ const productNav = [
   ['此刻', '/me'],
   ['侧面', '/side'],
   ['遇见', '/encounter'],
-  ['关于遇见', '/'],
+  ['关于遇见', '/about'],
 ] as const;
 
 function range(from?: string, to?: string) { return [from?.slice(0, 4), to?.slice(0, 4)].filter(Boolean).join('–'); }
@@ -112,7 +112,7 @@ function ProfileHeader({ query, onQueryChange }: { query: string; onQueryChange:
   return (
     <header className="relative z-30 border-b border-[#b7a98e]/20 bg-[#fbf8f1]/90 backdrop-blur-md">
       <div className="mx-auto flex min-h-[74px] max-w-[1280px] items-center gap-8 px-5 lg:px-8">
-        <Link href="/" className="flex shrink-0 items-center gap-4" aria-label="返回遇见首页">
+        <Link href="/profile" className="flex shrink-0 items-center gap-4" aria-label="前往个人画像">
           <span className="font-display text-[28px] font-bold tracking-[0.16em] text-[#173e70]">遇见</span>
           <span className="hidden border-l border-[#c8b998] pl-4 text-[11px] leading-5 tracking-[0.08em] text-[#65758a] sm:block">
             在真实的生活里<br />遇见有趣的灵魂
@@ -135,21 +135,24 @@ function ProfileHeader({ query, onQueryChange }: { query: string; onQueryChange:
           ))}
         </nav>
 
-        <label className="ml-auto hidden w-[250px] items-center gap-2 rounded-full border border-[#9dadc2]/35 bg-white/55 px-4 py-2 text-[#77859a] xl:flex">
-          <MagnifyingGlassIcon size={18} aria-hidden />
-          <input
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[#8f99a7]"
-            placeholder="搜索人、话题或内容…"
-            aria-label="搜索代表内容"
-          />
-        </label>
+        {/* 与 components/Nav.tsx 相同的右栏占位槽宽度，保证切页时导航不漂移 */}
+        <div className="flex shrink-0 items-center justify-end gap-4 xl:w-[340px]">
+          <label className="hidden w-[250px] items-center gap-2 rounded-full border border-[#9dadc2]/35 bg-white/55 px-4 py-2 text-[#77859a] xl:flex">
+            <MagnifyingGlassIcon size={18} aria-hidden />
+            <input
+              value={query}
+              onChange={(event) => onQueryChange(event.target.value)}
+              className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[#8f99a7]"
+              placeholder="搜索人、话题或内容…"
+              aria-label="搜索代表内容"
+            />
+          </label>
 
-        <Link href="/me" className="flex shrink-0 items-center gap-2 text-[#173e70]" aria-label="打开我的页面">
-          <span className="grid h-9 w-9 place-items-center rounded-full border border-[#c8b998]/70 bg-[#e6dcc9] font-display text-sm">遇</span>
-          <CaretDownIcon size={14} aria-hidden />
-        </Link>
+          <Link href="/me" className="flex shrink-0 items-center gap-2 text-[#173e70]" aria-label="打开我的页面">
+            <span className="grid h-9 w-9 place-items-center rounded-full border border-[#c8b998]/70 bg-[#e6dcc9] font-display text-sm">遇</span>
+            <CaretDownIcon size={14} aria-hidden />
+          </Link>
+        </div>
       </div>
       <nav className="mx-auto flex max-w-[1280px] overflow-x-auto border-t border-[#b7a98e]/15 px-3 lg:hidden" aria-label="移动端主要导航">
         {productNav.map(([label, href]) => (
@@ -173,6 +176,10 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
   const [selection, setSelection] = useState<EvidenceSelection>(null);
   const [connectorPaths, setConnectorPaths] = useState<ConnectorPath[]>([]);
   const [canvasScale, setCanvasScale] = useState(1);
+  // 首帧防跳：useLayoutEffect 里才能算出真实缩放比，在那之前若按 scale=1 画出来，
+  // 宽屏用户会看到内容先"撑满"再"缩回去"的一次抽动。用一个标记把首帧藏掉，
+  // 等缩放落定再淡入 —— 用户看到的是"渐显"，而不是"先错后对"。
+  const [scaleReady, setScaleReady] = useState(false);
   const [mapLayout, setMapLayout] = useState<MapLayout>(BASE_LAYOUT);
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLElement>(null);
@@ -203,6 +210,7 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
     const updateScale = () => {
       const nextScale = window.innerWidth <= 1050 ? 1 : Math.min(1, stage.clientWidth / 1448);
       setCanvasScale((current) => Math.abs(current - nextScale) < .001 ? current : nextScale);
+      setScaleReady(true);
     };
     updateScale();
     const observer = new ResizeObserver(updateScale);
@@ -210,6 +218,41 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
     window.addEventListener('resize', updateScale);
     return () => { observer.disconnect(); window.removeEventListener('resize', updateScale); };
   }, []);
+
+  /*
+   * 藤蔓生长时序（全进页编排，无需滚动触发）：
+   *   intro 0ms → 头像 180ms（扎根）→ 五条分支线 420ms 起每条 110ms 阶梯生长
+   *   → 各区块在对应线"长到"时浮现（线起点 + 约 0.55×生长时长）
+   *   → 时间轴长线 + 底部区块收尾。全程约 1.6s。
+   * 注意：本数组顺序 = 渲染顺序，render 里按 index 计算 delay。
+   */
+  const VINE_LINE_START = 420;
+  const VINE_LINE_STEP = 110;
+
+  /*
+   * 为每条连接线写入真实长度：
+   *   --dash-len  → mo-draw 描边生长动画精确从"整条隐藏"长到"整条显示"
+   *   --flow-dash / --flow-cycle / --flow-dur → 流光按线长定制（一段光从头跑到尾）
+   */
+  useEffect(() => {
+    if (!scaleReady) return;
+    const svg = canvasRef.current?.querySelector('svg.reference-connector-graph');
+    if (!svg) return;
+    svg.querySelectorAll<SVGPathElement>('path.mo-draw').forEach((p) => {
+      try {
+        const len = p.getTotalLength();
+        p.style.setProperty('--dash-len', String(Math.ceil(len)));
+      } catch { /* jsdom 等无 getTotalLength 环境下跳过 */ }
+    });
+    svg.querySelectorAll<SVGPathElement>('path.mo-flow').forEach((p) => {
+      try {
+        const len = p.getTotalLength();
+        p.style.setProperty('--flow-dash', String(Math.ceil(len * 0.14)));
+        p.style.setProperty('--flow-cycle', String(Math.ceil(len * 1.14)));
+        p.style.setProperty('--flow-dur', `${(2.2 + len / 420).toFixed(2)}s`);
+      } catch { /* 同上 */ }
+    });
+  }, [scaleReady, connectorPaths]);
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
@@ -239,12 +282,14 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
       const logicalBottom = (element: HTMLElement) => (element.getBoundingClientRect().top - canvasBox.top) / scale + visualHeight(element);
       const introBottom = logicalBottom(intro);
       const centerBottom = 220 + visualHeight(center);
-      const conversationTop = Math.max(BASE_LAYOUT.conversationTop, Math.ceil(introBottom + 28));
-      const decisionsTop = Math.max(BASE_LAYOUT.decisionsTop, Math.ceil(275 + visualHeight(concerns) + 30));
-      const valuesTop = Math.max(BASE_LAYOUT.valuesTop, Math.ceil(decisionsTop + visualHeight(decisions) + 34));
-      const worksTop = Math.max(BASE_LAYOUT.worksTop, Math.ceil(conversationTop + visualHeight(conversation) + 38), Math.ceil(centerBottom + 42));
-      const bottomTop = Math.max(BASE_LAYOUT.bottomTop, Math.ceil(worksTop + visualHeight(worksSection) + 42), Math.ceil(valuesTop + visualHeight(values) + 42));
-      const canvasHeight = Math.max(BASE_LAYOUT.canvasHeight, Math.ceil(bottomTop + Math.max(visualHeight(featured), visualHeight(connect)) + 22));
+      // 区块间距增量整体放大（28/30/34/38/42 → 46/48/54/58/62），让整张地图更舒展；
+      // BASE_LAYOUT 仅作下限保护，实际位置由内容高度动态推算。
+      const conversationTop = Math.max(BASE_LAYOUT.conversationTop, Math.ceil(introBottom + 46));
+      const decisionsTop = Math.max(BASE_LAYOUT.decisionsTop, Math.ceil(275 + visualHeight(concerns) + 48));
+      const valuesTop = Math.max(BASE_LAYOUT.valuesTop, Math.ceil(decisionsTop + visualHeight(decisions) + 54));
+      const worksTop = Math.max(BASE_LAYOUT.worksTop, Math.ceil(conversationTop + visualHeight(conversation) + 58), Math.ceil(centerBottom + 62));
+      const bottomTop = Math.max(BASE_LAYOUT.bottomTop, Math.ceil(worksTop + visualHeight(worksSection) + 58), Math.ceil(valuesTop + visualHeight(values) + 62));
+      const canvasHeight = Math.max(BASE_LAYOUT.canvasHeight, Math.ceil(bottomTop + Math.max(visualHeight(featured), visualHeight(connect)) + 34));
       const next = { conversationTop, decisionsTop, valuesTop, worksTop, bottomTop, canvasHeight };
       setMapLayout((current) => Object.keys(next).every((key) => Math.abs(current[key as keyof MapLayout] - next[key as keyof MapLayout]) < 1) ? current : next);
     };
@@ -283,20 +328,63 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
       const decisionsEnd = badgePoint(decisions);
       const valuesEnd = badgePoint(values);
       const evidenceWeight = (counts: number[]) => Math.min(.62, .28 + counts.reduce((total, count) => total + count, 0) / 70);
-      const timelineStart = toCanvas(portraitBox, .30, .04);
-      const conversationStart = toCanvas(portraitBox, .03, .54);
-      const concernsStart = toCanvas(portraitBox, .97, .28);
-      const decisionsStart = toCanvas(portraitBox, .97, .70);
-      const valuesStart = toCanvas(portraitBox, .91, .82);
       const timelineNodes = Array.from(timeline.querySelectorAll<HTMLElement>('.reference-timeline-item i')).map((node) => toCanvas(node.getBoundingClientRect(), .5, .5));
+
+      /*
+       * 布线拓扑：从中央头像放射状发出的 5 条"扇形"线。
+       *
+       * 为什么不用原来那种"每条线写死一组控制点偏移"的做法：
+       *   节点位置随数据（多少条轨迹、多少个关切）变化，写死的偏移量没法适配，
+       *   结果就是有的线拐弯穿过中央头像、有的和邻居相交。
+       *
+       * 这里的做法是让控制点按"出射方向 + 入射方向"自动算：
+       *   - 每条线都从头像边缘朝目标方向发出（fan）
+       *   - 中段走一条与目标连线垂直的外凸弧，保证彼此错开、不穿头像
+       *   - 这样无论节点怎么变，5 条线都各走各的象限，天然不交错
+       */
+      const portraitCenter = toCanvas(portraitBox, .5, .5);
+      const portraitRadius = portraitBox.width / 2 / canvasScale;
+      const fan = (target: Point, lift: number) => {
+        const dx = target.x - portraitCenter.x;
+        const dy = target.y - portraitCenter.y;
+        const len = Math.max(1, Math.hypot(dx, dy));
+        const ux = dx / len;
+        const uy = dy / len;
+        // 出射点：头像边缘
+        const start = { x: portraitCenter.x + ux * portraitRadius, y: portraitCenter.y + uy * portraitRadius };
+        // 控制点沿"出射方向"和"入射方向"各伸出一段，中间 lift 让弧线外凸错开
+        const cA = { x: start.x + ux * len * 0.34 - uy * lift, y: start.y + uy * len * 0.34 + ux * lift };
+        const cB = { x: target.x - ux * len * 0.3 - uy * lift, y: target.y - uy * len * 0.3 + ux * lift };
+        return { start, d: cubic(start, cA, cB, target) };
+      };
+
+      const branches: Array<[Point, number]> = [
+        [timelineEnd, -46],
+        [conversationEnd, 38],
+        [concernsEnd, -30],
+        [decisionsEnd, 26],
+        [valuesEnd, 40],
+      ];
+      const branchIds = ['trajectory', 'conversation', 'concerns', 'decisions', 'values'] as const;
+      const branchEvidence = [
+        profile.life_trajectory.map((item) => item.evidence_ids?.length || 0),
+        profile.conversation_style.traits.map((item) => item.evidence_ids?.length || 0),
+        profile.long_term_concerns.map((item) => item.evidence_ids?.length || 0),
+        profile.decision_patterns.map((item) => item.evidence_ids?.length || 0),
+        profile.value_preferences.map((item) => item.evidence_ids?.length || 0),
+      ];
+
       setConnectorPaths([
-        { id: 'trajectory', kind: 'branch', start: timelineStart, end: timelineEnd, d: cubic(timelineStart, { x: timelineStart.x - 82, y: timelineStart.y - 118 }, { x: timelineEnd.x - 88, y: timelineEnd.y + 24 }, timelineEnd), opacity: evidenceWeight(profile.life_trajectory.map((item) => item.evidence_ids?.length || 0)) },
-        { id: 'conversation', kind: 'branch', start: conversationStart, end: conversationEnd, d: cubic(conversationStart, { x: conversationStart.x - 155, y: conversationStart.y - 92 }, { x: conversationEnd.x + 120, y: conversationEnd.y - 82 }, conversationEnd), opacity: evidenceWeight(profile.conversation_style.traits.map((item) => item.evidence_ids?.length || 0)) },
-        { id: 'concerns', kind: 'branch', start: concernsStart, end: concernsEnd, d: cubic(concernsStart, { x: concernsStart.x + 82, y: concernsStart.y - 58 }, { x: concernsEnd.x - 62, y: concernsEnd.y + 20 }, concernsEnd), opacity: evidenceWeight(profile.long_term_concerns.map((item) => item.evidence_ids?.length || 0)) },
-        { id: 'decisions', kind: 'branch', start: decisionsStart, end: decisionsEnd, d: cubic(decisionsStart, { x: decisionsStart.x + 105, y: decisionsStart.y + 36 }, { x: decisionsEnd.x - 64, y: decisionsEnd.y - 18 }, decisionsEnd), opacity: evidenceWeight(profile.decision_patterns.map((item) => item.evidence_ids?.length || 0)) },
-        { id: 'values', kind: 'branch', start: valuesStart, end: valuesEnd, d: cubic(valuesStart, { x: valuesStart.x + 82, y: valuesStart.y + 34 }, { x: valuesEnd.x - 50, y: valuesEnd.y - 58 }, valuesEnd), opacity: evidenceWeight(profile.value_preferences.map((item) => item.evidence_ids?.length || 0)) },
-        ...(timelineNodes.length ? [{ id: 'timeline-lead', kind: 'timeline' as const, start: timelineEnd, end: timelineNodes[0], d: cubic(timelineEnd, { x: timelineEnd.x - 18, y: timelineEnd.y + 48 }, { x: timelineNodes[0].x - 65, y: timelineNodes[0].y - 8 }, timelineNodes[0]), opacity: .84 }] : []),
-        ...(timelineNodes.length > 1 ? [{ id: 'timeline-journey', kind: 'timeline' as const, start: timelineNodes[0], end: timelineNodes[timelineNodes.length - 1], d: windingPath(timelineNodes), opacity: .84 }] : []),
+        ...branches.map(([target, lift], i) => {
+          const { start, d } = fan(target, lift);
+          return { id: branchIds[i], kind: 'branch' as const, start, end: target, d, opacity: evidenceWeight(branchEvidence[i]) };
+        }),
+        /*
+         * 时间轴长线：badge → 各节点用一条 Catmull-Rom 曲线一次串完。
+         * 之前拆成 lead + journey 两条，在首节点处硬接，延伸很生硬；
+         * 合并成一条后就是藤蔓沿时间轴自然爬过的形态。
+         */
+        ...(timelineNodes.length ? [{ id: 'timeline-journey', kind: 'timeline' as const, start: timelineEnd, end: timelineNodes[timelineNodes.length - 1], d: windingPath([timelineEnd, ...timelineNodes]), opacity: .84 }] : []),
       ]);
     };
     updatePaths();
@@ -310,86 +398,118 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
     <main className="reference-profile-page" id="overview">
       <ProfileHeader query={query} onQueryChange={setQuery} />
 
-      <div ref={stageRef} className="reference-map-stage" style={{
-        '--reference-scale': canvasScale,
-        '--reference-height': `${mapLayout.canvasHeight}px`,
-        '--conversation-top': `${mapLayout.conversationTop}px`,
-        '--decisions-top': `${mapLayout.decisionsTop}px`,
-        '--values-top': `${mapLayout.valuesTop}px`,
-        '--works-top': `${mapLayout.worksTop}px`,
-        '--bottom-top': `${mapLayout.bottomTop}px`,
-      } as React.CSSProperties}>
+      <div
+        ref={stageRef}
+        className="reference-map-stage"
+        style={{
+          '--reference-scale': canvasScale,
+          '--reference-height': `${mapLayout.canvasHeight}px`,
+          '--conversation-top': `${mapLayout.conversationTop}px`,
+          '--decisions-top': `${mapLayout.decisionsTop}px`,
+          '--values-top': `${mapLayout.valuesTop}px`,
+          '--works-top': `${mapLayout.worksTop}px`,
+          '--bottom-top': `${mapLayout.bottomTop}px`,
+          // 缩放未落定前先不可见，避免"先撑满再缩回"的抽动被看见
+          ...(scaleReady ? {} : { visibility: 'hidden' as const }),
+        } as React.CSSProperties}>
       <section ref={canvasRef} className="reference-canvas" aria-label="人物理解地图">
         <svg className="reference-connector-graph" aria-hidden="true" viewBox={`0 0 1448 ${mapLayout.canvasHeight}`} preserveAspectRatio="none">
-          {connectorPaths.map((path) => <g key={path.id} className={`reference-connector-${path.kind}`} style={{ opacity: path.opacity }}><path d={path.d} />{path.kind === 'branch' && <><circle cx={path.start.x} cy={path.start.y} r="3.4" /><circle cx={path.end.x} cy={path.end.y} r="4.2" /></>}</g>)}
+          {connectorPaths.map((path, index) => (
+            <g key={path.id} className={`reference-connector-${path.kind}`} style={{ opacity: path.opacity }}>
+              {/*
+                藤蔓生长：底层描边从头像向外"抽条"（mo-draw），随后一段流光
+                沿线循环（mo-flow）。分支按 index 排 110ms 阶梯，逐条蔓延。
+              */}
+              <path
+                d={path.d}
+                className="mo-draw"
+                style={{ animationDelay: `${VINE_LINE_START + index * VINE_LINE_STEP}ms` }}
+              />
+              {path.kind === 'branch' && (
+                <path
+                  d={path.d}
+                  className="mo-flow"
+                  style={{ animationDelay: `${VINE_LINE_START + index * VINE_LINE_STEP + 600}ms` }}
+                />
+              )}
+              {path.kind === 'branch' && <><circle cx={path.start.x} cy={path.start.y} r="3.4" /><circle cx={path.end.x} cy={path.end.y} r="4.2" /></>}
+            </g>
+          ))}
         </svg>
-        <section ref={introRef} className="reference-intro">
-          <h1>一个人</h1>
-          <p>由公开内容与长期表达生成的人物理解</p>
-          <div><span><StackIcon size={16} /> 信息来源&nbsp; {artifact.meta.content_count}</span><span><ClockIcon size={16} /> 覆盖时间&nbsp; {period}</span></div>
+        <section ref={introRef} className="reference-intro mo-rise">
+          {/*
+            字号收敛（内联覆盖 globals.css 里写死的 4.25rem/.7rem）：
+            原标题 68px 与副标 .7rem 相差约 6 倍、与正文相差 4.3 倍，一头沉。
+            收到 2.75rem，并把副标升到 .82rem，层级比从 ~6:1 收到 ~3.4:1，
+            仍是清晰的主次，但不再"压"住整张地图。
+            之所以用内联而不是改 globals.css —— 那个文件在 AGENTS.md 里是冻结的。
+          */}
+          <h1 style={{ fontSize: '2.75rem', letterSpacing: '0.1em', lineHeight: 1.08 }}>一个人</h1>
+          <p style={{ fontSize: '1.05rem', margin: '14px 0 12px' }}>由公开内容与长期表达生成的人物理解</p>
+          <div style={{ fontSize: '.82rem', gap: '18px' }}><span><StackIcon size={16} /> 信息来源&nbsp; {artifact.meta.content_count}</span><span><ClockIcon size={16} /> 覆盖时间&nbsp; {period}</span></div>
           <EvidenceButton title="核心人物理解" description={profile.summary.core_insights[0]?.explanation || profile.summary.one_sentence} evidenceIds={profile.summary.core_insights[0]?.evidence_ids} onOpen={setSelection} className="reference-quote">
-            <QuotesIcon size={21} weight="fill" /><p>{mapSummary}</p><small>查看依据</small>
+            <QuotesIcon size={21} weight="fill" /><p style={{ fontSize: '1.02rem', lineHeight: 1.7 }}>{mapSummary}</p><small style={{ fontSize: '.72rem' }}>查看依据</small>
           </EvidenceButton>
         </section>
 
-        <section ref={timelineRef} id="trajectory" className="reference-timeline">
+        <section ref={timelineRef} id="trajectory" className="reference-timeline mo-rise" style={{ animationDelay: '850ms' }}>
           <DimensionTitle no="1" title="走过什么" note="人生轨迹" />
           <div className="reference-timeline-rail">
             {visibleTrajectory.map((item, index) => (
               <EvidenceButton key={item.period} title={item.period} description={`${item.event} ${item.change}`} evidenceIds={item.evidence_ids} onOpen={setSelection} className={`reference-timeline-item item-${index}`}>
-                <i className={index === visibleTrajectory.length - 1 ? 'is-current' : ''} />
+                <i className={`mo-node-pulse ${index === visibleTrajectory.length - 1 ? 'is-current' : ''}`} />
                 <b>{item.period}</b><span>{short(item.event, 28)}</span>
               </EvidenceButton>
             ))}
           </div>
         </section>
 
-        <section ref={centerRef} className="reference-center">
-          <div className="reference-portrait"><Image src={avatarSrc || '/images/profile/ink-avatar-fallback-v1.png'} alt="人物头像" fill sizes="260px" priority /></div>
+        <section ref={centerRef} className="reference-center mo-rise" style={{ animationDelay: '180ms' }}>
+          <div className="reference-portrait mo-portrait"><Image src={avatarSrc || '/images/profile/ink-avatar-fallback-v1.png'} alt="人物头像" fill sizes="260px" priority /></div>
           <EvidenceButton title="一句话人物理解" description={profile.summary.one_sentence} evidenceIds={profile.summary.core_insights.flatMap((item) => item.evidence_ids || [])} onOpen={setSelection} className="reference-center-caption">
-            <strong>{mapClaim}</strong><small>公开内容样本 · {period}</small>
+            <strong style={{ fontSize: '1.02rem', lineHeight: 1.6 }}>{mapClaim}</strong><small style={{ fontSize: '.72rem' }}>公开内容样本 · {period}</small>
           </EvidenceButton>
         </section>
 
-        <section ref={conversationRef} className="reference-conversation">
+        <section ref={conversationRef} className="reference-conversation mo-rise" style={{ animationDelay: '950ms' }}>
           <EvidenceButton title="怎么与人交流" description={profile.conversation_style.traits[0]?.explanation || ''} evidenceIds={profile.conversation_style.traits[0]?.evidence_ids} onOpen={setSelection}><DimensionTitle no="5" title="怎么与人交流" note="对话风格" /></EvidenceButton>
           <div className="reference-trait-list">{visibleTraits.map((item, index) => <EvidenceButton key={item.trait} title={`交流线索 ${index + 1}`} description={item.explanation} evidenceIds={item.evidence_ids} onOpen={setSelection}><ChatCircleDotsIcon size={15} /><span>{short(item.trait, 17)}</span><CaretRightIcon size={13} /></EvidenceButton>)}</div>
           <div className="reference-entry-card"><b>适合怎么聊</b>{profile.conversation_style.good_entry_points.slice(0, 2).map((entry) => <p key={entry}>· {short(entry, 29)}</p>)}</div>
         </section>
 
-        <section ref={concernsRef} className="reference-concerns">
+        <section ref={concernsRef} className="reference-concerns mo-rise" style={{ animationDelay: '1050ms' }}>
           <EvidenceButton title="在追求什么" description={profile.long_term_concerns[0]?.explanation || ''} evidenceIds={profile.long_term_concerns[0]?.evidence_ids} onOpen={setSelection}><DimensionTitle no="2" title="在追求什么" note="长期关切与驱动力" /></EvidenceButton>
           <div className="reference-driver-core">{profile.drivers.slice(0, 2).map((driver) => <EvidenceButton key={driver.driver} title="驱动力" description={driver.explanation} evidenceIds={driver.evidence_ids} onOpen={setSelection}>{short(driver.driver, 10)}</EvidenceButton>)}</div>
           <div className="reference-concern-tags">{profile.long_term_concerns.slice(0, 3).map((concern) => <EvidenceButton key={concern.question} title="长期关切" description={concern.explanation} evidenceIds={concern.evidence_ids} onOpen={setSelection}>{short(concern.question, 13)}</EvidenceButton>)}</div>
         </section>
 
-        <section ref={decisionsRef} className="reference-decisions">
+        <section ref={decisionsRef} className="reference-decisions mo-rise" style={{ animationDelay: '1150ms' }}>
           <EvidenceButton title="通常怎么做" description={profile.decision_patterns[0]?.description || ''} evidenceIds={profile.decision_patterns[0]?.evidence_ids} onOpen={setSelection}><DimensionTitle no="3" title="通常怎么做" note="决策模式" /></EvidenceButton>
           <div className="reference-decision-flow">{profile.decision_patterns.slice(0, 3).map((item, index) => <EvidenceButton key={item.name} title={item.name} description={item.description} evidenceIds={item.evidence_ids} onOpen={setSelection}><span>{index === 0 ? <EyeIcon size={19} /> : index === 1 ? <ScalesIcon size={19} /> : <FlagIcon size={19} />}</span><b>{short(item.name, 12)}</b><small>{short(item.process[0] || item.description, 13)}</small></EvidenceButton>)}</div>
         </section>
 
-        <section ref={valuesRef} className="reference-values">
+        <section ref={valuesRef} className="reference-values mo-rise" style={{ animationDelay: '1250ms' }}>
           <EvidenceButton title="重视什么" description={profile.value_preferences[0]?.explanation || ''} evidenceIds={profile.value_preferences[0]?.evidence_ids} onOpen={setSelection}><DimensionTitle no="4" title="重视什么" note="价值偏好" /></EvidenceButton>
           <div>{visibleValues.map((value) => <EvidenceButton key={value.left} title="价值取向" description={value.explanation} evidenceIds={value.evidence_ids} onOpen={setSelection}><span>{short(value.left, 10)}</span><i><b /></i><span>{short(value.right, 10)}</span></EvidenceButton>)}</div>
         </section>
 
-        <section ref={worksRef} id="works" className="reference-works">
+        <section ref={worksRef} id="works" className="reference-works mo-rise" style={{ animationDelay: '1350ms' }}>
           <div className="reference-section-cap"><DimensionTitle no="6" title="代表内容" note="代表内容精选" /><span>依据 {profile.representative_contents.length}</span></div>
           <div className="reference-work-row">{works.slice(0, 4).map((work) => <EvidenceButton key={work.content_id} title={work.title} description={work.why_representative} evidenceIds={[work.content_id]} onOpen={setSelection}><small>{work.content_type} · {work.date}</small><b>{work.title === '(无标题)' ? '一则代表回答' : short(work.title, 18)}</b><p>{short(evidenceById.get(work.content_id)?.excerpt || work.why_representative, 54)}</p><span>查看依据 <ArrowSquareOutIcon size={12} /></span></EvidenceButton>)}</div>
         </section>
 
-        <section ref={featuredRef} className="reference-featured">
+        <section ref={featuredRef} className="reference-featured mo-rise" style={{ animationDelay: '1420ms' }}>
           <b>代表内容精选</b><small>来自公开内容的精选片段</small>
           <div>{works.slice(0, 4).map((work) => <EvidenceButton key={work.content_id} title={work.title} description={work.why_representative} evidenceIds={[work.content_id]} onOpen={setSelection}><small>{work.content_type} · {work.date}</small><strong>{work.title === '(无标题)' ? '一则代表回答' : short(work.title, 20)}</strong><p>{short(work.why_representative, 55)}</p></EvidenceButton>)}</div>
         </section>
 
-        <section ref={connectRef} id="connect" className="reference-connect">
+        <section ref={connectRef} id="connect" className="reference-connect mo-rise" style={{ animationDelay: '1490ms' }}>
           <b>适合如何认识 TA</b>{profile.conversation_style.good_entry_points.map((entry, index) => <EvidenceButton key={entry} title="认识建议" description={entry} evidenceIds={profile.conversation_style.traits[index]?.evidence_ids} onOpen={setSelection}><span>0{index + 1}</span>{short(entry, 32)}</EvidenceButton>)}
         </section>
       </section>
       </div>
 
-      {selection && <aside className="reference-evidence-drawer" role="dialog" aria-modal="true" aria-labelledby="evidence-title"><div onClick={() => setSelection(null)} /><section><button type="button" onClick={() => setSelection(null)} aria-label="关闭依据面板"><XIcon size={20} /></button><p>可追溯依据</p><h2 id="evidence-title">{selection.title}</h2><article>{selection.description}</article><div>{selection.evidenceIds.length ? selection.evidenceIds.map((id) => {
+      {selection && <aside className="reference-evidence-drawer mo-slide-in" role="dialog" aria-modal="true" aria-labelledby="evidence-title"><div onClick={() => setSelection(null)} /><section><button type="button" onClick={() => setSelection(null)} aria-label="关闭依据面板"><XIcon size={20} /></button><p>可追溯依据</p><h2 id="evidence-title">{selection.title}</h2><article>{selection.description}</article><div>{selection.evidenceIds.length ? selection.evidenceIds.map((id) => {
         const item = evidenceById.get(id); if (!item) return null;
         return <section key={id}><small>{item.type} · {item.date}</small><b>{item.title || '一则公开内容'}</b><p>{item.excerpt || '该内容被用于支持此处判断。'}</p>{item.url && <a href={item.url} target="_blank" rel="noreferrer">打开原始内容 <ArrowSquareOutIcon size={14} /></a>}</section>;
       }) : <p>这项判断暂未附带可展示的内容编号。</p>}</div></section></aside>}

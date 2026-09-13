@@ -14,6 +14,8 @@ const DEMO_IDS = [
   ['u6', '老猫 · 价值投资者'],
 ];
 
+const SHOW_DEMO_TOOLS = process.env.NODE_ENV === 'development';
+
 export default function MePage() {
   const router = useRouter();
   const me = useMe();
@@ -84,7 +86,7 @@ export default function MePage() {
     {me.error && <div role="alert" className="relative z-10 mx-auto mb-4 max-w-6xl px-6 text-sm text-red-700">
       最新状态加载失败：{me.error} <button className="underline" onClick={() => { void me.refresh().catch(() => {}); }}>重试</button>
     </div>}
-    <section className="relative z-10 mx-auto grid max-w-6xl items-start gap-8 px-4 pb-16 sm:px-6 lg:grid-cols-2">
+    <section className="mo-page-in relative z-10 mx-auto grid max-w-6xl items-start gap-8 px-4 pb-16 sm:px-6 lg:grid-cols-2">
       <PresentSelfForm key={me.user.id} currentState={me.currentState} onSaved={me.refresh}
         disabled={busy} onSavingChange={setSaving} />
       <div className="card-warm fade-up-1 min-w-0 p-6 md:p-10">
@@ -111,13 +113,14 @@ export default function MePage() {
             <button className="mt-3 text-xs text-ink-600 underline" onClick={() => router.push('/profile')}>查看完整画像 ›</button>
           </> : <p className="mt-3 text-sm text-sumi-500">还没有理解摘要。<button className="text-ink-600 underline" onClick={() => router.push('/onboarding')}>开始理解 →</button></p>}
         </div>
-        <div className="mt-6 border-t border-paper-300 pt-4">
-          <p className="text-xs text-sumi-500">演示身份切换（比赛演示用）</p>
+        {SHOW_DEMO_TOOLS && <details className="mt-6 border-t border-paper-300 pt-4 text-xs text-sumi-500">
+          <summary className="cursor-pointer select-none">开发工具 · 切换预览数据</summary>
+          <p className="mt-2 leading-5">仅本地开发环境显示，不属于正式产品流程。</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {DEMO_IDS.map(([id, label]) => <button key={id} disabled={busy || saving} onClick={() => switchUser(id)}
               className={`chip-warm disabled:opacity-50 ${me.user.id === id ? '!bg-gold-500 !text-white' : ''}`}>{label}</button>)}
           </div>
-        </div>
+        </details>}
       </div>
     </section>
     <footer className="relative z-10 px-6 pb-8 text-center text-xs text-sumi-400">遇见，连接真实的彼此</footer>

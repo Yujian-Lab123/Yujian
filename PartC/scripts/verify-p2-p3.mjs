@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { registerHooks } from 'node:module';
 
 // Node 22 的 strip-types 不会自动补全仓库里的无扩展名 TS import；
@@ -25,9 +26,24 @@ const {
   vec,
 } = await import('../lib/axes.ts');
 const { SEED_CONTENTS, SEED_USERS } = await import('../lib/db/seed.ts');
+const { buildCurrentStateMatchText } = await import('../lib/current-state/privacy.ts');
 const { evaluateCandidate, filterEligibleCandidates } = await import('../lib/retrieval/candidate-filter.ts');
+const {
+  directedAxisSimilarity,
+  directedCoverage,
+  generalizedKLDivergence,
+  generalizedKLSimilarity,
+  isConceptAxisVector,
+} = await import('../lib/retrieval/directional-similarity.ts');
 const { RECALL_SOURCES, multiRouteRecall } = await import('../lib/retrieval/multi-recall.ts');
-const { coarseScore, finalScore, rankRecalledCandidates, rerankScore } = await import('../lib/retrieval/scoring.ts');
+const { applyModelRerankScores } = await import('../lib/retrieval/model-rerank.ts');
+const {
+  coarseScore,
+  finalScore,
+  pairScoreBreakdown,
+  rankRecalledCandidates,
+  rerankScore,
+} = await import('../lib/retrieval/scoring.ts');
 
 const round = (value) => Number(value.toFixed(3));
 const line = (title) => console.log(`\n${'='.repeat(18)} ${title} ${'='.repeat(18)}`);
@@ -53,7 +69,9 @@ function vectorsFor(userId, includeCurrent = true) {
     long_term: longTerm,
     value: mask(longTerm, VALUE_AXES),
     conversation: mask(longTerm, CONVERSATION_AXES),
-    current: includeCurrent && user?.current_state ? stateVec(user.current_state.text) : null,
+    current: includeCurrent && user?.current_state
+      ? stateVec(buildCurrentStateMatchText(user.current_state))
+      : null,
   };
 }
 
@@ -111,6 +129,8 @@ function showRanking(ranked) {
     Diversity: round(item.diversity),
     Coarse: round(item.coarse),
     Rerank: round(item.rerank),
+    Forward: round(item.forward),
+    Backward: round(item.backward),
     Mutual: round(item.mutual),
     Final: round(item.final),
   })));
@@ -122,6 +142,59 @@ function check(condition, message) {
   assertions += 1;
   console.log(`✓ ${message}`);
 }
+
+function concept(...values) {
+  return Array.from({ length: AXES.length }, (_, index) => values[index] ?? 0);
+}
+
+function bundle(vector) {
+  return { long_term: vector, value: vector, conversation: vector, current: null };
+}
+
+line('步骤 0：方向性数学性质与 1024 维回退');
+const identical = concept(0.9, 0.4, 0.1);
+check(directedCoverage(identical, identical) === 1, '相同非零概念轴的 Coverage 为 1');
+check(generalizedKLSimilarity(identical, identical) === 1, '相同非零概念轴的 GKLScore 为 1');
+check(directedAxisSimilarity(identical, identical) === 1, '相同非零概念轴的 AxisDirectional 为 1');
+
+const strong = concept(0.9, 0.1);
+const weak = concept(0.09, 0.01);
+check(Math.abs(cosine(strong, weak) - 1) < 1e-12, '比例相同但强度不同的余弦仍为 1');
+check(Math.abs(directedCoverage(strong, weak) - 0.1) < 1e-9, 'Coverage(strong→weak) 为 0.1');
+check(directedCoverage(weak, strong) === 1, 'Coverage(weak→strong) 为 1');
+check(
+  generalizedKLDivergence(strong, weak) !== generalizedKLDivergence(weak, strong),
+  'Generalized KL 在交换方向后不同',
+);
+check(directedCoverage(concept(0.8, 0.8), concept(0.8, 0)) < 0.51, '目标缺失重要轴时 Coverage 明显降低');
+check(Number.isFinite(generalizedKLSimilarity(concept(1), concept(0))), '大量零值不会产生 NaN 或 Infinity');
+check(directedAxisSimilarity(concept(), concept(1)) === 0, '空 source 的方向性分为 0');
+check(!isConceptAxisVector([1, 0]) && !isConceptAxisVector(concept(-0.1)), '错误维度和负数不属于概念轴');
+
+const directionalForward = pairScoreBreakdown(bundle(strong), bundle(weak));
+const directionalBackward = pairScoreBreakdown(bundle(weak), bundle(strong));
+console.table([
+  { direction: 'strong → weak', mode: directionalForward.mode, score: round(directionalForward.score), coverage: round(directionalForward.coverage_long_term), gkl_score: round(directionalForward.gkl_long_term) },
+  { direction: 'weak → strong', mode: directionalBackward.mode, score: round(directionalBackward.score), coverage: round(directionalBackward.coverage_long_term), gkl_score: round(directionalBackward.gkl_long_term) },
+]);
+check(directionalForward.score !== directionalBackward.score, '16 维 Pair forward/backward 真实不同');
+
+const embeddingA = Array.from({ length: 1024 }, (_, index) => (index % 3 === 0 ? -0.2 : 0.4));
+const embeddingB = Array.from({ length: 1024 }, (_, index) => (index % 5 === 0 ? -0.1 : 0.3));
+const embeddingForward = pairScoreBreakdown(bundle(embeddingA), bundle(embeddingB));
+const embeddingBackward = pairScoreBreakdown(bundle(embeddingB), bundle(embeddingA));
+check(embeddingForward.mode === 'embedding-cosine', '1024 维含负数 Embedding 自动回退余弦');
+check(Math.abs(embeddingForward.score - embeddingBackward.score) < 1e-12, 'Embedding 回退 forward/backward 如实保持对称');
+const malformedFallback = pairScoreBreakdown(bundle([1, 0]), bundle([1]));
+check(Number.isFinite(malformedFallback.score), '维度不一致的回退输入也不会产生 NaN 或 Infinity');
+
+const multiRecallSource = fs.readFileSync(new URL('../lib/retrieval/multi-recall.ts', import.meta.url), 'utf8');
+const vectorIndexSource = fs.readFileSync(new URL('../lib/db/vector-index.ts', import.meta.url), 'utf8');
+const matcherSource = fs.readFileSync(new URL('../lib/retrieval/matcher.ts', import.meta.url), 'utf8');
+check(/cosine\(left, right\)/.test(multiRecallSource), 'P2 内存召回继续使用余弦');
+check(/embedding <=> \$1::vector/.test(vectorIndexSource), 'P5 ANN 继续使用 pgvector 余弦距离');
+check(/momentCandidate\?\.cur >= 0\.55/.test(matcherSource), 'Current State Moment 阈值仍为 0.55');
+check(/directionality_mode: directionalityMode/.test(matcherSource), '推荐调试信息记录真实方向性模式');
 
 const users = SEED_USERS.map((user) => ({
   ...user,
@@ -195,9 +268,28 @@ for (const item of ranked) {
   const recalculatedFinal = finalScore(recalculatedRerank, item.mutual);
   check(Math.abs(item.coarse - recalculatedCoarse) < 1e-12, `${item.user.name} 的 Coarse 公式可复算`);
   check(Math.abs(item.rerank - recalculatedRerank) < 1e-12, `${item.user.name} 的 Rerank 公式可复算`);
+  check(Math.abs(item.mutual - Math.min(item.forward, item.backward)) < 1e-12, `${item.user.name} 的 Mutual=min(forward, backward)`);
   check(Math.abs(item.final - recalculatedFinal) < 1e-12, `${item.user.name} 的 Final 公式可复算`);
+  check(
+    [item.forward, item.backward, item.mutual, item.final].every((score) => Number.isFinite(score) && score >= 0 && score <= 1),
+    `${item.user.name} 的方向分与最终分均有限且位于 [0,1]`,
+  );
 }
 check(ranked[0].user.id === 'u2', 'Demo A 第一名是 u2 陈默');
+
+const rerankProbeBefore = ranked[0];
+const rerankProbeAfter = applyModelRerankScores([rerankProbeBefore], [0.42])[0];
+check(rerankProbeAfter.rerank === 0.42, 'P6 模型分可以替换 Mock Rerank');
+check(
+  rerankProbeAfter.forward === rerankProbeBefore.forward
+    && rerankProbeAfter.backward === rerankProbeBefore.backward
+    && rerankProbeAfter.mutual === rerankProbeBefore.mutual,
+  'P6 模型 Rerank 保留 forward/backward/mutual',
+);
+check(
+  Math.abs(rerankProbeAfter.final - finalScore(0.42, rerankProbeBefore.mutual)) < 1e-12,
+  'P6 模型 Rerank 只按既有权重重算 Final',
+);
 
 line('步骤 6：P3 输出接入下游 Content Bridge');
 const bridgeRanking = bridgeCandidates(baseViewerVectors, ranked[0].user.id);
@@ -211,9 +303,10 @@ console.table(bridgeRanking.map((item, index) => ({
 check(bridgeRanking[0].id === 'c24', '按当前 Content Bridge 公式，陈默的 c24 是实际首选内容');
 
 line('步骤 7：Demo B，Current State 路由');
-const currentText = '很想晚上找个人出去走走';
+const currentSelection = { mood: '疲惫', activity: '想走走', connectionMode: '找同伴' };
+const currentText = buildCurrentStateMatchText(currentSelection);
 const momentViewerVectors = { ...baseViewerVectors, current: stateVec(currentText) };
-console.log(`江树的 Current State：${currentText}`);
+console.log(`江树参与匹配的结构化 Current State：${currentText}`);
 const momentRecalled = multiRouteRecall(momentViewerVectors, candidatePairs);
 const currentRoute = momentRecalled
   .filter((item) => item.recallSources.includes('current'))
@@ -247,4 +340,4 @@ check(encounterOrder[0] === 'u3', 'Moment 规则把阿屿提升到 Encounter 第
 line('结论');
 console.log(`PASS：${assertions} 项断言全部通过。`);
 console.log('P2 已验证：多路独立召回、合并去重、来源追踪、Current 路由。');
-console.log('P3 已验证：特征计算、粗排、Mock Rerank、Mutual、Final 排序、Moment 提升。');
+console.log('P3 已验证：16 维方向性 Pair、1024 维余弦回退、粗排、Mock Rerank、Mutual、Final 排序、Moment 提升。');

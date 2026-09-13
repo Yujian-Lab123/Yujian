@@ -22,6 +22,7 @@ const {
   buildRerankPersonText,
   selectRerankPool,
 } = await import('../lib/retrieval/model-rerank.ts');
+const { buildCurrentStateMatchText } = await import('../lib/current-state/privacy.ts');
 
 const compatible = buildRerankRequest({
   model: 'qwen3-rerank', apiStyle: 'compatible', query: 'query', documents: ['a', 'b'], instruct: 'similarity',
@@ -64,8 +65,8 @@ assert.deepEqual(provider?.scores, [0.32, 0.91]);
 const profileText = buildRerankPersonText({
   id: 'u0', name: '江树', role: '产品经理', quote: '关心人与技术',
   tags: ['AI', '长期主义'], intents: ['朋友'], encounter_enabled: 1,
-}, null, '今晚想出去走走');
-assert.match(profileText, /此刻状态：今晚想出去走走/);
+}, null, buildCurrentStateMatchText({ mood: '疲惫', activity: '想走走', connectionMode: '找同伴' }));
+assert.match(profileText, /此刻状态：心情：疲惫；活动：想走走；交流：找同伴/);
 
 const candidate = (id, mutual) => ({
   user: { id, name: id, role: '', quote: '', tags: [], intents: [], encounter_enabled: 1 },

@@ -2,6 +2,7 @@ import path from 'node:path';
 import { listArtifacts, listCrawlerInputs, readArtifactFile, resolveLocalAvatar } from '@/lib/profile/store';
 import { getProfileArtifact, listProfileArtifacts } from '@/lib/profile/repository';
 import { getRealSessionUserId, hasDemoSession } from '@/lib/experience-mode/session';
+import { resolveProfileEmptyState } from '@/lib/experience-mode/empty-state';
 import ProfileExperience from './profile-experience';
 
 /**
@@ -27,10 +28,11 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   if (artifact) return <ProfileExperience artifact={artifact} avatarSrc={avatarSrc} />;
 
   // 产品化空状态：按访客状态给出下一步引导（不出现开发口吻文案）。
+  const emptyState = resolveProfileEmptyState({ hasArtifact: Boolean(artifact), loggedIn: Boolean(uid), demoSession });
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#f7f4ee] px-6">
       <div className="max-w-md text-center">
-        {demoSession ? (
+        {emptyState === 'demo-visitor' ? (
           <>
             <p className="font-display text-2xl text-[#173e70]">你正在使用演示身份</p>
             <p className="mt-3 text-sm leading-6 text-[#77859a]">
@@ -38,7 +40,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
             </p>
             <a href="/demo" className="mt-6 inline-block rounded-lg bg-[#173e70] px-6 py-2.5 text-sm text-white">回到演示模式</a>
           </>
-        ) : uid ? (
+        ) : emptyState === 'real-pending' ? (
           <>
             <p className="font-display text-2xl text-[#173e70]">你的画像正在生成</p>
             <p className="mt-3 text-sm leading-6 text-[#77859a]">

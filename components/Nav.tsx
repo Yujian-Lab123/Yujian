@@ -3,23 +3,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { CaretDownIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { useMe } from '@/lib/useMe';
+import { isNavItemActive, resolveNav } from '@/lib/experience-mode/nav';
 import styles from './Nav.module.css';
-
-const productNav = [
-  ['个人', '/profile'],
-  ['此刻', '/me'],
-  ['侧面', '/side'],
-  ['遇见', '/encounter'],
-  ['关于遇见', '/about'],
-] as const;
-
-const demoNav = [
-  ['个人', '/demo/profile'],
-  ['此刻', '/demo/me'],
-  ['遇见', '/demo/encounter'],
-  ['连接', '/demo/connections'],
-  ['关于遇见', '/about'],
-] as const;
 
 export function Logo({ tone }: { tone: 'blue' | 'warm' }) {
   const color = tone === 'blue' ? 'text-ink-900' : 'text-[#0d4079]';
@@ -35,10 +20,7 @@ export function Logo({ tone }: { tone: 'blue' | 'warm' }) {
 export default function Nav({ tone, tagline, right }: { tone: 'blue' | 'warm'; tagline: string; right?: React.ReactNode }) {
   const me = useMe();
   const pathname = usePathname() || '/';
-  const isDemo = pathname === '/demo' || pathname.startsWith('/demo/');
-  const items = isDemo ? demoNav : productNav;
-  const isActive = (href: string) => pathname === href || (href.endsWith('/encounter') && pathname.startsWith(href));
-  const prefix = (href: string) => (isDemo && href.startsWith('/demo') ? href : href);
+  const { isDemo, items } = resolveNav(pathname);
   return (
     <header className="relative z-30 border-b border-[#b7a98e]/20 bg-[#fbf8f1]/90 backdrop-blur-md">
       <div className="mx-auto flex min-h-[74px] max-w-[1280px] items-center gap-8 px-5 lg:px-8">
@@ -58,10 +40,10 @@ export default function Nav({ tone, tagline, right }: { tone: 'blue' | 'warm'; t
           {items.map(([label, href]) => (
             <Link
               key={label}
-              href={prefix(href)}
-              aria-current={isActive(href) ? 'page' : undefined}
+              href={href}
+              aria-current={isNavItemActive(href, pathname) ? 'page' : undefined}
               className={`flex items-center border-b-2 px-6 font-display text-[15px] font-semibold tracking-[0.08em] transition-colors ${
-                isActive(href)
+                isNavItemActive(href, pathname)
                   ? 'border-[#1769d7] text-[#1258bd]'
                   : 'border-transparent text-[#173e70] hover:border-[#b7c8df] hover:text-[#1258bd]'
               }`}
@@ -98,10 +80,10 @@ export default function Nav({ tone, tagline, right }: { tone: 'blue' | 'warm'; t
         {items.map(([label, href]) => (
           <Link
             key={label}
-            href={prefix(href)}
-            aria-current={isActive(href) ? 'page' : undefined}
+            href={href}
+            aria-current={isNavItemActive(href, pathname) ? 'page' : undefined}
             className={`shrink-0 border-b-2 px-4 py-2.5 font-display text-sm ${
-              isActive(href) ? 'border-[#1769d7] text-[#1258bd]' : 'border-transparent text-[#536a84]'
+              isNavItemActive(href, pathname) ? 'border-[#1769d7] text-[#1258bd]' : 'border-transparent text-[#536a84]'
             }`}
           >
             {label}

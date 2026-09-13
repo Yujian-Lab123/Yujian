@@ -71,3 +71,54 @@ externalIdentities.rawContents 生成画像」的路径）。
 - Turbopack 拒绝指向项目根外的 node_modules 链接——独立工作副本需物理复制依赖。
 - git：本机部分目录 loose ref 写入会静默失败（gc 竞争），commit 后用 `git ls-remote` 验证；
   遇见主工作区历史上发生过 AI 工具 checkpoint 篡改 refs 的事故（已根治：禁止 ChatGPT/Codex/Zcode 打开该目录）。
+
+---
+
+## 七、22:30 增量（真实身份修复 + 头像链路 + LLM 接入调整）
+
+### 7.1 知乎用户信息接口的正确用法（重要）
+
+`GET https://openapi.zhihu.com/user` **只需** `Authorization: Bearer <用户 access_token>`；
+**不要**加 Access Secret / `X-OAuth-Token` / 时间戳（旧实现误加，导致接口返回
+`{"code":..,"data":"Access token is not valid"}` 被兜底成匿名「知乎用户」+ anon-xxxx 身份）。
+
+返回字段：`uid`（int64，**必须用正则从原文无损提取**，JSON.parse 会丢精度）、
+`hash_id`、`fullname`（昵称）、`avatar_path`（头像）、`headline`、`description`、`url`。
+鉴权失败时接口返回 HTTP 200 + 错误串，**必须检查响应体再建会话**。
+创作内容接口（developer.zhihu.com）仍用双凭证头，两者不可混用。
+
+### 7.2 已修复并上线（main = 1198f26）
+
+- `lib/providers/zhihu.ts`：正确鉴权头 + 官方字段 + uid 无损解析 + 鉴权失败不建会话。
+- `lib/db/users.ts`：`getIdentityExtras()` 从 external_identities.profile 读头像/简介（零迁移）。
+- `/api/me`、`/api/demo/me`：user 对象附带 `avatarUrl / profileUrl / headline`。
+- `components/Nav.tsx`：右上角优先显示知乎头像（`referrerPolicy="no-referrer"`），回退姓名首字。
+
+### 7.3 数据侧现状（生产库）
+
+- 库名是 `postgres`（不是 `test-db`）；Sealos PG 外网为 `dbconn.sealoshzh.site:45671`（用完记得关）。
+- 3 个真实账号（real-anon-6d60f1be / 769a5d5d / e4723f6b）**同属一位用户**（三次测试登录），
+  已回填真实身份：昵称「飞鸟」+ 头像 + headline；3 份画像产物已按新 slug（`飞鸟-<id>`）重跑并入库。
+- `/profile` 公开页已能看到画像内容（读数据库，不需要新镜像）。
+
+### 7.4 运维脚本（scripts/）
+
+- `analyze-real-user.ts`：真实用户内容（OAuth rawContents，含知乎大写字段适配）→ 画像产物 → 写库。
+- `refresh-zhihu-identity.ts`：用已存 token 重新拉取并回填真实昵称/头像（`--dry-run` 支持）。
+- 运行方式（本地直连生产库时）：`node --env-file=<含 DATABASE_URL 与 LLM_* 的 env> node_modules/tsx/dist/cli.mjs scripts/<name>.ts`。
+
+### 7.5 LLM 接入现状（★ 换模型必须先验证存在性）
+
+- 生产 Sealos 环境变量：改用中转站 `https://api.openai-next.com/v1`，模型 `deepseek-v4-flash`
+  （实测可用；中文理解正常）。**注意中转站模型列表里没有 `qwen3.5-flash`/`qwen3.8-flash`**，
+  旧配置实际不可用；`LLM_CHEAP_MODEL` 必须同样使用存在的模型名。
+- 本地 `.env.local`：阿里云百炼官方 `https://dashscope.aliyuncs.com/compatible-mode/v1` + `qwen3.8-flash`。
+- 排查手法：`GET <BASE_URL>/models` 验证 key 与模型存在性；`POST /chat/completions` 实测。
+  （直接打接口时需带正常 User-Agent，否则可能被 Cloudflare 以 1010 拒绝。）
+
+### 7.6 待办（更新）
+
+1. 确认 Sealos 应用镜像 tag 是否为 **1198f26**（若仍是 cf77d12，右上角头像不会出现）。
+2. 真实画像自动生成链路（PR 4）仍是最核心的产品空缺：目前依赖脚本人工触发。
+3. `DEMO_AUTH_ENABLED=true` 正式提交前评估关闭。
+4. Sealos PG 外网访问用完即关。

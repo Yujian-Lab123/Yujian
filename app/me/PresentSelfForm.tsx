@@ -1,119 +1,173 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
-import { MOODS, STATES } from '@/lib/axes';
-import { composeRecord, MAX_RECORD_LENGTH, type PresentSelfDraft } from '@/lib/present-self/record';
+import {
+  BookOpenIcon, BriefcaseIcon, ChatCircleDotsIcon, FilmSlateIcon, FootprintsIcon,
+  MoonIcon, MountainsIcon, SmileyIcon, SparkleIcon, SunIcon,
+} from '@phosphor-icons/react';
+import { useEffect, useState, type ComponentType, type FormEvent } from 'react';
+import {
+  composeRecord, EMPTY_PRESENT_SELF_DRAFT, MAX_ACTIVITY_SELECTIONS, MAX_MOOD_SELECTIONS,
+  MAX_PERSON_PREFERENCE_LENGTH, MAX_THOUGHT_LENGTH, parseRecord, type PresentSelfDraft,
+} from '@/lib/present-self/record';
+import styles from './present-self.module.css';
 
-const EMPTY_DRAFT: PresentSelfDraft = { mood: '', state: '', confusion: '', activity: '', socialNeed: '' };
-const ACTIVITIES = ['散步走走', '一起学习', '运动一下', '喝杯咖啡', '暂时不想活动'];
-const SOCIAL_NEEDS = ['想被倾听', '想听听建议', '轻松闲聊', '寻找同伴', '想独处'];
+type IconComponent = ComponentType<{ size?: number; weight?: 'regular' | 'fill'; 'aria-hidden'?: boolean }>;
 
-function Choices({ label, value, options, onChange }: {
-  label: string; value: string; options: readonly string[]; onChange: (value: string) => void;
+const MOODS: Array<{ label: string; icon: IconComponent; warm?: boolean }> = [
+  { label: '平静', icon: MountainsIcon }, { label: '有点累', icon: MoonIcon },
+  { label: '开心', icon: SunIcon, warm: true }, { label: '有点焦虑', icon: MountainsIcon },
+  { label: '想散步', icon: FootprintsIcon }, { label: '想聊天', icon: ChatCircleDotsIcon },
+  { label: '想认识新的人', icon: SmileyIcon }, { label: '想安静一下', icon: BookOpenIcon, warm: true },
+  { label: '充满动力', icon: SparkleIcon },
+];
+
+const ACTIVITIES: Array<{ label: string; icon: IconComponent; warm?: boolean }> = [
+  { label: '散步', icon: FootprintsIcon }, { label: '看书', icon: BookOpenIcon },
+  { label: '看一部电影', icon: FilmSlateIcon }, { label: '好好吃一顿', icon: SmileyIcon, warm: true },
+  { label: '随便走走', icon: MountainsIcon }, { label: '和有趣的人聊天', icon: ChatCircleDotsIcon },
+  { label: '专注工作', icon: BriefcaseIcon }, { label: '只是放空', icon: SparkleIcon, warm: true },
+];
+
+const CONVERSATION_STYLES = ['轻松随意', '认真深入', '先从文字开始', '看情况'];
+
+function ChoicePills({ values, options, max, onChange }: {
+  values: string[];
+  options: Array<{ label: string; icon: IconComponent; warm?: boolean }>;
+  max: number;
+  onChange: (values: string[]) => void;
 }) {
-  return <fieldset className="mt-6">
-    <legend className="text-sm text-sumi-600">{label}</legend>
-    <div className="mt-3 flex flex-wrap gap-2">
-      {options.map((option) => <button key={option} type="button" aria-pressed={value === option}
-        onClick={() => onChange(value === option ? '' : option)}
-        className={`rounded-full border px-4 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink-500 ${value === option ? 'border-ink-500 bg-ink-50 text-ink-700' : 'border-paper-300 bg-white/60 text-sumi-500 hover:border-paper-400'}`}>
-        {option}
-      </button>)}
-    </div>
-  </fieldset>;
+  function toggle(label: string) {
+    if (values.includes(label)) onChange(values.filter((value) => value !== label));
+    else if (values.length < max) onChange([...values, label]);
+  }
+  return <div className={styles.pills}>
+    {options.map(({ label, icon: Icon, warm }) => {
+      const selected = values.includes(label);
+      const blocked = !selected && values.length >= max;
+      return <button key={label} type="button" aria-pressed={selected} disabled={blocked}
+        className={`${styles.pill} ${selected ? styles.pillSelected : ''} ${warm ? styles.pillWarm : ''}`}
+        onClick={() => toggle(label)}>
+        <Icon size={18} weight={selected ? 'fill' : 'regular'} aria-hidden />{label}
+      </button>;
+    })}
+  </div>;
 }
 
-export default function PresentSelfForm({ currentState, onSaved, disabled, onSavingChange }: {
+export default function PresentSelfForm({ currentState, encounterEnabled, understanding, disabled, onToggle, onSaved, onSavingChange, onDraftChange }: {
   currentState: { text: string; mood: string; created_at: string } | null;
-  onSaved: () => Promise<void>;
+  encounterEnabled: boolean;
+  understanding: { coreQuestion?: string; topics?: string[] } | null;
   disabled: boolean;
+  onToggle: () => Promise<void>;
+  onSaved: () => Promise<void>;
   onSavingChange: (saving: boolean) => void;
+  onDraftChange: (draft: PresentSelfDraft) => void;
 }) {
-  const [draft, setDraft] = useState<PresentSelfDraft>(EMPTY_DRAFT);
+  const [draft, setDraft] = useState<PresentSelfDraft>(EMPTY_PRESENT_SELF_DRAFT);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const text = composeRecord(draft);
-  const hasContent = Boolean(text || draft.mood);
-  const tooLong = text.length > MAX_RECORD_LENGTH;
 
-  function update(field: keyof PresentSelfDraft, value: string) {
-    setDraft((previous) => ({ ...previous, [field]: value }));
-    setMessage('');
-    setError('');
+  useEffect(() => {
+    const parsed = currentState ? parseRecord(currentState.text, currentState.mood) : null;
+    const next: PresentSelfDraft = parsed ? {
+      moods: parsed.moods,
+      thought: parsed.thought || parsed.legacyText,
+      activities: parsed.activities,
+      conversationStyle: parsed.conversationStyle,
+      personPreference: parsed.personPreference,
+    } : EMPTY_PRESENT_SELF_DRAFT;
+    setDraft(next);
+    onDraftChange(next);
+  }, [currentState?.created_at]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function update(next: PresentSelfDraft) {
+    setDraft(next); onDraftChange(next); setMessage(''); setError('');
   }
+
+  const text = composeRecord(draft);
+  const hasContent = Boolean(text || draft.moods[0]);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (saving || disabled || !hasContent || tooLong) return;
-    setSaving(true);
-    onSavingChange(true);
-    setError('');
-    setMessage('');
+    if (!hasContent || saving || disabled) return;
+    setSaving(true); onSavingChange(true); setError(''); setMessage('');
     try {
       const response = await fetch('/api/me/current-state', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, mood: draft.mood }),
+        body: JSON.stringify({ text, mood: draft.moods[0] || '' }),
       });
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.loginRequired ? '登录已失效，请重新登录后保存。' : result.error || '保存失败，请重试。');
-      setDraft(EMPTY_DRAFT);
-      setMessage('已记下此刻。');
-      try {
-        await onSaved();
-      } catch {
-        setMessage('记录已保存，最新状态加载失败，请刷新页面查看。');
-      }
+      setMessage('已经记下这一刻。');
+      await onSaved();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '网络异常，请稍后重试。');
     } finally {
-      setSaving(false);
-      onSavingChange(false);
+      setSaving(false); onSavingChange(false);
     }
   }
 
-  return <div className="card-warm fade-up min-w-0 p-6 md:p-10">
-    <h1 className="font-display text-3xl text-ink-800">今天怎么样？</h1>
-    <p className="mt-3 text-sm leading-6 text-sumi-500">记录此刻的你，选填即可。状态原文仅自己可见。</p>
-    <form onSubmit={save}>
-      <fieldset disabled={saving || disabled} className="min-w-0 disabled:opacity-60">
-        <legend className="sr-only">此刻记录</legend>
-        <Choices label="此刻心情" value={draft.mood} options={MOODS} onChange={(value) => update('mood', value)} />
-        <Choices label="当前状态" value={draft.state} options={STATES} onChange={(value) => update('state', value)} />
-        <label htmlFor="present-confusion" className="mt-6 block text-sm text-sumi-600">最近困惑 / 当下想法</label>
-        <textarea id="present-confusion" value={draft.confusion} maxLength={MAX_RECORD_LENGTH} rows={4}
-          onChange={(event) => update('confusion', event.target.value)}
-          placeholder="最近有什么让你犹豫、好奇，或想找人聊聊？"
-          aria-describedby="present-length"
-          aria-invalid={tooLong}
-          className="mt-3 w-full rounded-xl border border-paper-300 bg-white/70 p-4 text-sm outline-none focus:border-ink-400" />
-        <Choices label="当前活动意愿" value={draft.activity} options={ACTIVITIES} onChange={(value) => update('activity', value)} />
-        <Choices label="社交需求" value={draft.socialNeed} options={SOCIAL_NEEDS} onChange={(value) => update('socialNeed', value)} />
-        <p id="present-length" className={`mt-4 text-xs ${tooLong ? 'text-red-700' : 'text-sumi-500'}`}>
-          完整记录 {text.length} / {MAX_RECORD_LENGTH} 字（含栏目名称）{tooLong && '，请缩短内容后保存。'}
-        </p>
-        <div className="mt-6 rounded-xl border border-paper-300 bg-white/50 p-4">
-          <label htmlFor="present-expiry" className="block text-sm text-sumi-600">状态有效期</label>
-          <select id="present-expiry" disabled className="mt-2 w-full rounded-lg border border-paper-300 bg-paper-100 p-2 text-sm text-sumi-500">
-            <option>待接入自动到期</option>
-          </select>
-          <p className="mt-2 text-xs leading-5 text-sumi-500">目前保存的记录不会自动到期；连接意愿请通过遇见开关控制。</p>
+  return <section className={styles.formCard}>
+    <header className={styles.hero}>
+      <span className={styles.eyebrow}>PRESENT MOMENT</span>
+      <h1>今天的你，是什么样子？</h1><span className={styles.goldRule} />
+      <p>在这里，记录此刻的心情、状态与期待。<br />这将帮助遇见更好地理解今天的你，为你推荐更合适的相遇。</p>
+      <blockquote>好的相遇，<br />从诚实地表达此刻的自己开始。</blockquote>
+    </header>
+
+    <form className={styles.form} onSubmit={save}>
+      <fieldset disabled={saving || disabled}>
+        <div className={styles.fieldHeader}><legend>今日心情</legend><span>可多选，最多 {MAX_MOOD_SELECTIONS} 项</span></div>
+        <ChoicePills values={draft.moods} options={MOODS} max={MAX_MOOD_SELECTIONS} onChange={(moods) => update({ ...draft, moods })} />
+
+        <label className={styles.label} htmlFor="present-thought">最近在想什么？</label>
+        <div className={styles.textareaWrap}>
+          <textarea id="present-thought" rows={2} maxLength={MAX_THOUGHT_LENGTH} value={draft.thought}
+            onChange={(event) => update({ ...draft, thought: event.target.value })}
+            placeholder="写下最近停留在心里的事，或今天想整理的一点思绪。" />
+          <span>{draft.thought.length}/{MAX_THOUGHT_LENGTH}</span>
         </div>
-        <button type="submit" disabled={!hasContent || tooLong || saving}
-          className="btn-primary-blue mt-6 w-full !rounded-xl !bg-ink-800 hover:!bg-ink-900 disabled:cursor-not-allowed disabled:opacity-50">
-          {saving ? '正在保存…' : '记下此刻'}
-        </button>
+
+        <div className={styles.fieldHeader}><legend>今天想做什么？</legend><span>可多选，最多 {MAX_ACTIVITY_SELECTIONS} 项</span></div>
+        <ChoicePills values={draft.activities} options={ACTIVITIES} max={MAX_ACTIVITY_SELECTIONS} onChange={(activities) => update({ ...draft, activities })} />
+
+        <div className={styles.twoColumns}>
+          <div><span className={styles.label}>愿意被遇见吗？</span>
+            <div className={styles.switchRow}>
+              <button type="button" role="switch" aria-checked={encounterEnabled} aria-label="今天愿意被遇见"
+                className={`${styles.switch} ${encounterEnabled ? styles.switchOn : ''}`} onClick={() => void onToggle()}><span /></button>
+              <div><strong>{encounterEnabled ? '今天愿意被遇见' : '今天暂时不参与相遇'}</strong><small>这个开关独立即时保存。</small></div>
+            </div>
+          </div>
+          <fieldset><legend className={styles.label}>希望的交流方式</legend>
+            <div className={styles.radios}>{CONVERSATION_STYLES.map((style) => <label key={style}>
+              <input type="radio" name="conversation-style" checked={draft.conversationStyle === style}
+                onChange={() => update({ ...draft, conversationStyle: style })} /> {style}
+            </label>)}</div>
+          </fieldset>
+        </div>
+
+        <label className={styles.label} htmlFor="present-person">想认识什么样的人？</label>
+        <div className={styles.textareaWrap}>
+          <textarea id="present-person" rows={1} maxLength={MAX_PERSON_PREFERENCE_LENGTH} value={draft.personPreference}
+            onChange={(event) => update({ ...draft, personPreference: event.target.value })}
+            placeholder="例如：有自己的生活节奏，愿意分享最近生活和小小灵感的人。" />
+          <span>{draft.personPreference.length}/{MAX_PERSON_PREFERENCE_LENGTH}</span>
+        </div>
+
+        <div className={styles.aiPreview}><SparkleIcon size={26} weight="fill" aria-hidden />
+          <div><strong>{understanding ? 'AI 理解' : '理解预览'}</strong>
+            <p>{draft.moods.length ? `你此刻带着${draft.moods.join('、')}的感受。` : '选择一点心情，让遇见从此刻开始理解你。'}{draft.personPreference ? ` 你希望遇见${draft.personPreference}` : ''}</p>
+          </div>
+        </div>
       </fieldset>
-      {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
-      <p role="status" className="mt-3 text-sm text-ink-700">{message}</p>
+
+      <div className={styles.formFooter}><span>此刻只是此刻。无论此刻怎样，你都值得被温柔地遇见。</span>
+        <button type="submit" disabled={!hasContent || saving || disabled}>{saving ? '正在保存…' : '更新此刻'} <span aria-hidden>→</span></button>
+      </div>
+      {error && <p role="alert" className={styles.error}>{error}</p>}
+      <p role="status" className={styles.success}>{message}</p>
     </form>
-    <section className="mt-4 rounded-xl bg-paper-200/70 p-4" aria-label="最新记录">
-      <h2 className="text-sm text-sumi-700">{currentState ? '最近记下的此刻' : '从第一条记录开始'}</h2>
-      {currentState ? <>
-        {currentState.mood && <p className="mt-2 text-sm text-ink-700">心情：{currentState.mood}</p>}
-        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-sumi-600">{currentState.text}</p>
-        <p className="mt-2 text-xs text-sumi-500">{new Date(currentState.created_at).toLocaleString('zh-CN')}</p>
-      </> : <p className="mt-2 text-sm text-sumi-500">选一个心情，或写下一句想法，就可以记下此刻。</p>}
-    </section>
-  </div>;
+  </section>;
 }

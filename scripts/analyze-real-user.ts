@@ -40,6 +40,23 @@ function parseArgs(argv: string[]) {
   return flags;
 }
 
+/** 知乎开放接口返回的字段为大写开头（Url/Title/Summary/CreatedAt/ContentType），
+ *  这里归一化为管线使用的 RawContent；若已是小写宽松格式则回退 looseParseItems。 */
+function normalizeOAuthItems(raw: unknown[]): RawContent[] {
+  const isZhihuShape = raw.some((x) => x && typeof x === 'object' && ('Title' in (x as object) || 'Summary' in (x as object)));
+  if (!isZhihuShape) return looseParseItems(raw);
+  return raw
+    .filter((x): x is Record<string, unknown> => Boolean(x) && typeof x === 'object')
+    .map((x) => ({
+      id: String(x.Url || x.Title || Math.random()).slice(-24),
+      title: x.Title ? String(x.Title) : undefined,
+      text: String(x.Summary || ''),
+      type: x.ContentType ? String(x.ContentType) : undefined,
+      url: x.Url ? String(x.Url) : undefined,
+      published_at: typeof x.CreatedAt === 'number' ? x.CreatedAt : null,
+    }));
+}
+
 interface Candidate { userId: string; name: string; zhihuUserId: string; count: number }
 
 /** 列出所有「真实用户 + 已保存内容条数」，供操作者选择目标。 */
@@ -97,11 +114,12 @@ async function main() {
       continue;
     }
 
-    const items: RawContent[] = looseParseItems(raw);
+    const items: RawContent[] = normalizeOAuthItems(raw);
     if (items.length === 0) {
       console.error('[real-user] 内容解析后为空，跳过。');
       continue;
     }
+    console.log('[real-user] 解析样例:', items.slice(0, 3).map((i) => `「${(i.title || '').slice(0, 20)}」${i.text.length}字`).join(' / '));
 
     const artifact = await analyzeProfile(items, { maxItems: Number(flags['max-items'] ?? 80) });
     // 真实账号名字可能重复（如匿名「知乎用户」），slug 追加知乎 id 短码保证唯一。

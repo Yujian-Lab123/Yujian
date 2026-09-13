@@ -15,13 +15,14 @@ P5 的仓库代码已经完成：P4 生成的 1024 维真实 Embedding 会幂等
 | `profile_long_term` | P4 长期画像文档 | 画像更新时覆盖 |
 | `profile_value` | P4 价值问题文档 | 画像更新时覆盖 |
 | `profile_conversation` | P4 对话风格文档 | 画像更新时覆盖 |
-| `profile_current` | 用户此刻状态文本 | 与状态相同，默认 72 小时 |
+| `profile_current` | 心情 / 活动 / 交流意图的规范结构化文本 | 与状态相同，默认 72 小时 |
 | `content` | P4 逐内容摘要、主题与关键问题 | 内容删除后同步清理 |
 
 - 固定维度：1024；`EMBED_DIMENSIONS` 必须保持为 `1024`。
 - `space_id` 由服务地址、模型名和维度共同计算，防止不同模型空间混排。
 - `(user_id, kind, source_id)` 唯一，画像 Worker 可安全重复同步。
 - HNSW 使用 `vector_cosine_ops`；`space_id / kind / user_id` 另有 B-tree 过滤索引。
+- 新版 `profile_current` 使用 `source_id = structured:{userId}`，ANN 查询只接收该来源；旧版自由文本向量不会参与召回。
 
 ## 在线链路
 
@@ -56,7 +57,7 @@ npm run db:migrate
 npm run dev
 ```
 
-随后配置 `EMBED_BASE_URL / EMBED_API_KEY / EMBED_MODEL / EMBED_DIMENSIONS=1024`，重新生成有关联用户的 P4 画像。Worker 会在保存画像后同步向量索引；新提交的此刻状态也会同步并带过期时间。
+随后配置 `EMBED_BASE_URL / EMBED_API_KEY / EMBED_MODEL / EMBED_DIMENSIONS=1024`，重新生成有关联用户的 P4 画像。Worker 会在保存画像后同步向量索引；新提交的结构化此刻标签也会同步并带过期时间。用户自由文本不会进入 Embedding。
 
 ## 验收与边界
 

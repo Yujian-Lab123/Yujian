@@ -3,6 +3,7 @@ import { contents, currentStates, users } from './schema';
 import { SEED_CONTENTS, SEED_USERS } from './seed';
 import { computeUserVectors } from './index';
 import { vec } from '../axes';
+import { encodeCurrentState } from '../current-state/privacy';
 
 export async function seedDatabase(): Promise<void> {
   await db.transaction(async (tx) => {
@@ -26,9 +27,16 @@ export async function seedDatabase(): Promise<void> {
         await tx.insert(currentStates).values({
           id: `cs-${user.id}`,
           userId: user.id,
-          text: user.current_state.text,
+          text: encodeCurrentState(user.current_state),
           mood: user.current_state.mood,
-        }).onConflictDoNothing();
+        }).onConflictDoUpdate({
+          target: currentStates.id,
+          set: {
+            text: encodeCurrentState(user.current_state),
+            mood: user.current_state.mood,
+            expiresAt: null,
+          },
+        });
       }
     }
     for (const content of SEED_CONTENTS) {

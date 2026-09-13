@@ -8,7 +8,7 @@ import { filterEligibleCandidates } from './candidate-filter';
 import type { RecCard } from './contracts';
 import { multiRouteRecall, type RecalledCandidate } from './multi-recall';
 import { rerankWithModel } from './rerank-pipeline';
-import { rankRecalledCandidates, type RankedCandidate } from './scoring';
+import { pairScoreBreakdown, rankRecalledCandidates, type RankedCandidate } from './scoring';
 
 export type { RecCard } from './contracts';
 
@@ -87,13 +87,17 @@ export async function buildEncounters(viewerId: string): Promise<RecCard[]> {
       lt: item.lt, val: item.val, conv: item.conv, cur: item.cur,
       intent: item.intent, novelty: item.novelty, diversity: item.diversity,
       recall: item.recall.max_score, coarse: item.coarse, rerank: item.rerank,
-      mutual: item.mutual, final: item.final,
+      forward: item.forward, backward: item.backward, mutual: item.mutual, final: item.final,
     };
+    const directionalityMode = pairScoreBreakdown(rankingViewerVectors, item.vectors).mode;
     const bridgeDebug = {
       recall_sources: item.recall.sources,
       recall_scores: item.recall.scores,
       retrieval_mode: retrievalMode,
       rerank_mode: reranked.mode,
+      directionality_mode: directionalityMode,
+      forward: item.forward,
+      backward: item.backward,
       ...(reranked.model ? { rerank_model: reranked.model } : {}),
       ...(reranked.apiStyle ? { rerank_api_style: reranked.apiStyle } : {}),
     };
@@ -115,7 +119,7 @@ export async function buildEncounters(viewerId: string): Promise<RecCard[]> {
         long_term: item.lt, value: item.val, conversation: item.conv, current: item.cur,
         intent: item.intent, novelty: item.novelty, diversity: item.diversity,
         recall: item.recall.max_score, coarse: item.coarse, rerank: item.rerank,
-        mutual: item.mutual, final: item.final,
+        forward: item.forward, backward: item.backward, mutual: item.mutual, final: item.final,
       },
       recall_sources: item.recall.sources,
       recall_scores: item.recall.scores,

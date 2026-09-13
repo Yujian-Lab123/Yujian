@@ -18,6 +18,8 @@ export interface EncounterScores {
   recall: number;
   coarse: number;
   rerank: number;
+  forward: number;
+  backward: number;
   mutual: number;
   final: number;
 }

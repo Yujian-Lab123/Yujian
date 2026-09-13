@@ -42,12 +42,13 @@ Intent 空数组表示“尚未设置”，暂不作为硬拒绝，避免刚完�
 
 - 新状态默认有效 72 小时，并写入数据库已有的 `current_states.expires_at` 字段。
 - 向量读取和“我的”页面只读取未过期状态。
-- 历史 `expires_at = null` 数据继续视为有效，避免升级后旧演示数据突然失效。
+- 只有心情、活动、交流意图三个白名单结构化选择参与匹配；选填自由文本只临时交给 LLM，原文不保存、不回传、不展示。
+- 新版状态使用 v2 JSON 封装；历史纯文本状态即使仍在有效期内也不再参与匹配或展示，以满足新的隐私边界。
 
 ## 固定回归场景
 
 - Demo A：江树可以召回陈默，关键 Content Anchor 为《我为什么没有留在大厂》。
-- Demo B：阿屿保留“想出去走走”的 Current State 输入，供后续排序阶段验证置顶。
+- Demo B：阿屿保留“疲惫 / 想走走 / 找同伴”的结构化 Current State，供后续排序阶段验证置顶。
 - 候选过滤：自己、关闭遇见、已连接、已发出意向、不感兴趣、拉黑、Intent 不兼容均被排除。
 
 ## 当前 Schema 缺口
@@ -64,4 +65,3 @@ Intent 空数组表示“尚未设置”，暂不作为硬拒绝，避免刚完�
 - `lib/retrieval/demo-contract.test.ts`
 - `lib/db/current-state.test.ts`
 - 完整门禁：`npm run check`（需要本地先有 `node_modules`）
-

@@ -1,4 +1,5 @@
 import type { Axis } from '../axes';
+import type { CurrentStateSelection } from '../current-state/privacy';
 
 // ============ 遇见 · Mock 种子数据 ============
 // 设计原则（概览 §54）：不同专业 / 兴趣 / 人生阶段，避免所有人都是 AI/编程/产品。
@@ -15,7 +16,7 @@ export interface SeedUser {
   auto_reciprocate: 0 | 1;
   zhihu_years: number;
   upvotes: string;
-  current_state?: { text: string; mood: string };
+  current_state?: CurrentStateSelection;
 }
 
 export interface SeedContent {
@@ -57,7 +58,7 @@ export const SEED_USERS: SeedUser[] = [
     quote: '山不会回答你，但山会听。',
     tags: ['户外', '徒步', '城市行走'], intents: ['户外搭子', '朋友'],
     auto_reciprocate: 1, zhihu_years: 3, upvotes: '4,120',
-    current_state: { text: '最近刚结束一个大项目，脑子快炸了，很想晚上找个人出去走走。', mood: '想出去走走' },
+    current_state: { mood: '疲惫', activity: '想走走', connectionMode: '找同伴' },
   },
   {
     id: 'u4', name: '林医生', role: '住院医师', city: '上海',

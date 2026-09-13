@@ -9,7 +9,7 @@
 | long_term | 内容向量加权平均（anchor ×2） | 长期兴趣/主题 |
 | value | long_term 在价值轴上的掩码（career/longterm/meaning/psycho/society/invest/edu） | “反复思考的问题”是否类似 |
 | conversation | 掩码（writing/psycho/meaning/society/anxiety/life） | 是否聊得下去 |
-| current | 此刻状态文本 → 向量（Mock：stateVec 关键词；真实：Embedding） | 此刻遇见 |
+| current | 心情 / 活动 / 交流意图三个白名单结构化标签 → 规范文本 → 向量 | 此刻遇见 |
 | content_anchor[] | 每篇内容一个向量 | Content Bridge |
 
 Mock 阶段向量由种子数据人工标注在 16 维概念轴上。P5 已增加独立的 1024 维真实向量空间：画像 Worker 将 P4 产物同步到 pgvector，在线召回优先走 HNSW；真实索引冷启动、迁移未执行或查询失败时自动回退 16 维内存链路，不混合两个空间计算相似度。
@@ -28,7 +28,7 @@ Mock 阶段向量由种子数据人工标注在 16 维概念轴上。P5 已增�
 
 P5 的调试契约会返回 `retrieval_mode: pgvector | memory`，并保留 `recall_sources` 与 `recall_scores`。真实 Embedding 为通用高维语义空间，因此不把单个维度误解释为 16 维概念轴；多样性项使用中性值，后续可改为聚类或 MMR。
 
-P6 的调试契约返回 `rerank_mode: model | mock`，真实调用成功时附带 `rerank_model`。模型只接收画像结论和仍有效的此刻状态，不接收原始内容或证据摘录；真实分只在单次候选批次内比较，继续通过 `0.55·rerank + 0.45·mutual` 保留双向价值约束。
+P6 的调试契约返回 `rerank_mode: model | mock`，真实调用成功时附带 `rerank_model`。模型只接收画像结论和仍有效的结构化此刻标签，不接收用户私密记录、原始内容或证据摘录；真实分只在单次候选批次内比较，继续通过 `0.55·rerank + 0.45·mutual` 保留双向价值约束。
 
 ## 反馈与指标
 
@@ -38,5 +38,5 @@ feedback 严格四类：`not_interested / content_interesting / learn_more / wan
 ## Demo 复现
 
 - **Demo A 跨主题连接**：默认身份江树（AI/产品）→ 首推陈默（摄影师），共享「自由与稳定/意义与价值」，开场问题：“如果收入下降 30%，但每周多两天完全属于自己的时间，你会接受吗？”
-- **Demo B 此刻状态**：/me 写“很想晚上找个人出去走走”→ 阿屿以「此刻遇见」置顶。
+- **Demo B 此刻状态**：/me 选择“疲惫 / 想走走 / 找同伴”→ 阿屿以「此刻遇见」置顶；选填私密文字不参与匹配或展示。
 - **Demo C 喜欢内容≠想认识**：推荐卡上“内容有意思”与“想认识 TA”是两个独立按钮，分别落库。

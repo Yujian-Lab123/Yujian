@@ -115,10 +115,14 @@ export async function syncProfileVectorIndex(userId: string, artifact: ProfileAr
   return 'indexed';
 }
 
-/** 为“此刻状态”生成同空间向量；失败时清除旧行，避免过时状态继续参加召回。 */
-export async function syncCurrentStateVector(userId: string, text: string, expiresAt: Date): Promise<'indexed' | 'skipped'> {
+/** 只为允许展示的结构化“此刻”标签生成向量；自由文本绝不能传到这里。 */
+export async function syncCurrentStateVector(
+  userId: string,
+  structuredMatchText: string,
+  expiresAt: Date,
+): Promise<'indexed' | 'skipped'> {
   if (!embeddingConfigured() || configuredEmbeddingDimensions() !== RETRIEVAL_EMBEDDING_DIMENSIONS) return 'skipped';
-  const generated = await embedTexts([text], { dimensions: RETRIEVAL_EMBEDDING_DIMENSIONS });
+  const generated = await embedTexts([structuredMatchText], { dimensions: RETRIEVAL_EMBEDDING_DIMENSIONS });
   const embedding = generated?.vectors[0];
   if (!generated || !embedding || !indexable(embedding)) {
     await db.delete(retrievalEmbeddings).where(and(
@@ -127,27 +131,27 @@ export async function syncCurrentStateVector(userId: string, text: string, expir
     ));
     return 'skipped';
   }
-  await db.insert(retrievalEmbeddings).values({
-    id: rowId(userId, 'profile_current', userId),
-    userId,
-    kind: 'profile_current',
-    sourceId: userId,
-    sourceHash: createHash('sha256').update(text).digest('hex'),
-    spaceId: generated.spaceId,
-    model: generated.model,
-    embedding,
-    expiresAt,
-    updatedAt: new Date(),
-  }).onConflictDoUpdate({
-    target: [retrievalEmbeddings.userId, retrievalEmbeddings.kind, retrievalEmbeddings.sourceId],
-    set: {
-      sourceHash: createHash('sha256').update(text).digest('hex'),
+  const sourceId = `structured:${userId}`;
+  const sourceHash = createHash('sha256').update(structuredMatchText).digest('hex');
+  const updatedAt = new Date();
+  await db.transaction(async (tx) => {
+    // 同一用户旧版 profile_current 可能来自自由文本，先彻底移出索引。
+    await tx.delete(retrievalEmbeddings).where(and(
+      eq(retrievalEmbeddings.userId, userId),
+      eq(retrievalEmbeddings.kind, 'profile_current'),
+    ));
+    await tx.insert(retrievalEmbeddings).values({
+      id: rowId(userId, 'profile_current', sourceId),
+      userId,
+      kind: 'profile_current',
+      sourceId,
+      sourceHash,
       spaceId: generated.spaceId,
       model: generated.model,
       embedding,
       expiresAt,
-      updatedAt: new Date(),
-    },
+      updatedAt,
+    });
   });
   return 'indexed';
 }
@@ -204,6 +208,7 @@ export async function annRecallProfiles(
       where user_id = $1
         and kind = any($2::text[])
         and (expires_at is null or expires_at > now())
+        and (kind <> 'profile_current' or source_id = 'structured:' || user_id)
       order by updated_at desc
     `, [viewerId, Object.values(KIND_BY_SOURCE)]);
 
@@ -230,6 +235,7 @@ export async function annRecallProfiles(
         from retrieval_embeddings
         where kind = $2 and space_id = $3 and user_id = any($4::text[])
           and (expires_at is null or expires_at > now())
+          and (kind <> 'profile_current' or source_id = 'structured:' || user_id)
         order by embedding <=> $1::vector
         limit $5
       `, [toPgvectorLiteral(vector), row.kind, spaceId, eligibleUserIds, limit])
@@ -254,6 +260,7 @@ export async function annRecallProfiles(
       where user_id = any($1::text[]) and space_id = $2
         and kind = any($3::text[])
         and (expires_at is null or expires_at > now())
+        and (kind <> 'profile_current' or source_id = 'structured:' || user_id)
     `, [merged.map((item) => item.userId), spaceId, Object.values(KIND_BY_SOURCE)]);
     const vectorsByUser = new Map<string, UserVectors>();
     for (const row of vectorResult.rows) {

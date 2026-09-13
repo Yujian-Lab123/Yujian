@@ -204,6 +204,10 @@ P4 的仓库级定义来自根目录 `IMPLEMENTATION_PLAN.md`：真实 Profile P
 
 注意：当前没有 `node_modules`，所以未启动浏览器做运行时截图或执行 Next.js 完整质量门；已提供 `scripts/verify-p7.mjs` 做范围与关键能力的静态验收。
 
+### “此刻”隐私规则补充
+
+已将 Current State 改为“结构化匹配 + 私密文字隔离”：只有心情、活动、交流意图三个白名单选项进入 16 维 Mock、1024 维 Embedding 与 P6 Reranker。选填自由文本只在单次请求内交给 LLM 理解，原文不写数据库、不回传、不展示；LLM 结果只允许白名单主题分类和支持需求，不保存自由文本摘要。旧版纯文本状态停止参与匹配和展示，旧版 pgvector 行也由 `structured:{userId}` 来源门槛排除。未修改冻结的 Schema 或迁移文件。详见 `docs/CURRENT_STATE_PRIVACY.md`。
+
 ## 7. 已完成的验证
 
 ### 静态与纯函数验证
@@ -213,6 +217,7 @@ P4 的仓库级定义来自根目录 `IMPLEMENTATION_PLAN.md`：真实 Profile P
 - `scripts/verify-p4.mjs` 与 `scripts/verify-p5.mjs` 均通过；P5 覆盖 1024 维契约、向量序列化、多路 ANN 合并、HNSW 迁移、余弦查询和内存回退。
 - `scripts/verify-p6.mjs` 通过；覆盖两类 Qwen/GTE 请求和响应格式、响应索引对齐、结构化画像隐私边界、模型分融合、Current State 席位和主链接入。
 - `scripts/verify-p7.mjs` 通过；覆盖水墨 Loading、四阶段展示进度、非横滑卡片转场、人物揭示、双向成功、移动端 `100dvh`、动效降级和状态播报。
+- `scripts/verify-current-state-privacy.mjs` 验证结构化白名单、版本化存储、旧数据隔离，以及 API / Embedding / Reranker / 页面均不暴露自由文本。
 
 ### 使用真实种子数据的 Demo A
 
@@ -239,13 +244,13 @@ c21《我为什么没有留在大厂》
 
 ### 使用真实种子数据的 Demo B
 
-给江树加入：
+给江树选择：
 
 ```text
-很想晚上找个人出去走走
+疲惫 / 想走走 / 找同伴
 ```
 
-结果：`u3 阿屿` 被 `current` 通道召回，Current 相似度为 `0.819`，超过“此刻相遇”阈值 `0.55`。
+结果：`u3 阿屿` 被 `current` 通道召回，Current 相似度为 `1.000`，超过“此刻相遇”阈值 `0.55`。
 
 ## 8. 当前已知限制，不要误报为完成
 

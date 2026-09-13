@@ -1,4 +1,5 @@
-import { getLatestCurrentState } from '../db';
+import { buildCurrentStateMatchText } from '../current-state/privacy';
+import { getLatestStructuredCurrentState } from '../db';
 import {
   rerankerConfigured,
   rerankTexts,
@@ -37,10 +38,14 @@ export async function rerankWithModel<TUser extends RerankUser>(
   try {
     const [artifacts, currentState] = await Promise.all([
       loadLatestProfileArtifacts([viewer.id, ...pool.map((item) => item.user.id)]),
-      getLatestCurrentState(viewer.id),
+      getLatestStructuredCurrentState(viewer.id),
     ]);
     const result = await rerankTexts(
-      buildRerankQuery(viewer, artifacts.get(viewer.id), currentState?.text),
+      buildRerankQuery(
+        viewer,
+        artifacts.get(viewer.id),
+        currentState ? buildCurrentStateMatchText(currentState.selection) : null,
+      ),
       pool.map((item) => buildRerankDocument(item.user, artifacts.get(item.user.id))),
       { instruct: CONVERSATION_RERANK_INSTRUCTION },
     );

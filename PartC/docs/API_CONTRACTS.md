@@ -32,6 +32,14 @@
 
 模型、索引或外部服务不可用时字段明确标记回退模式，不删除原字段、不返回部分模型结果。
 
+## “此刻”隐私契约
+
+- `POST /api/me/current-state` 接收必填 `mood / activity / connectionMode` 白名单值，以及选填、最长 300 字的 `privateNote`。
+- 只有三个结构化字段参与 Mock 向量、Embedding 和 Reranker。`privateNote` 只在请求期间交给 LLM，原文不持久化、不回传、不展示。
+- 成功响应为 `{ ok, id, note_status }`；`note_status` 为 `not_provided / understood / discarded_unavailable`。
+- `GET /api/me` 的 `currentState` 只包含 `selection / private_note_status / created_at`，不包含原文或 LLM 派生理解。
+- 旧版纯文本状态不再返回或参与匹配。完整边界见 `docs/CURRENT_STATE_PRIVACY.md`。
+
 ## 兼容规则
 
 - 前端当前使用的 snake_case 展示字段暂不重命名。

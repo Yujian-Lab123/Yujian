@@ -33,6 +33,7 @@
 
 - **`profile/`（★ 核心）** 画像引擎：`schema.ts` 六维结构与产物类型、`prompt.ts` 两阶段提示词（改了必须 bump `PROMPT_VERSION`）、`engine.ts` 摘要 + 抽取 + 综合 + Embedding 管线、`incremental.ts` 内容哈希/分块/增量复用、`report.ts` Markdown 渲染与人工评析表、`jobs.ts` 与 `repository.ts` 任务落库与进度、`store.ts` 产物读写
 - **`retrieval/matcher.ts`** 在线匹配：Hard Filter → 召回 → 粗排 → Rerank → Deep Match → Bridge
+- **`current-state/privacy.ts`** “此刻”结构化白名单、版本化存储与旧版自由文本隔离契约
 - **`ai/bridge.ts`** Deep Match / Content Bridge / Conversation Bridge；**`ai/profile.ts`** 是演示用的模板画像，不是真引擎
 - **`axes.ts`** 16 维概念轴，旧 Mock 匹配在用，和画像引擎的六维**不是一回事**
 - **`useMe.ts`** 前端取当前用户的 hook
@@ -58,7 +59,7 @@
 
 ## 文档 `docs/`
 
-`ARCHITECTURE`、`MATCHING`、`PROFILE_ENGINE`、`PRODUCT` 讲系统怎么设计；`API_CONTRACTS` 是跨模块稳定接口；`OWNERSHIP` + `workstreams/A-PROFILE.md`、`B-ENCOUNTER.md`、`C-PLATFORM.md`、`D-RELEASE.md` 讲谁改什么；`DEVELOPMENT` 讲怎么跑；`SECURITY` 是生产依赖基线。
+`ARCHITECTURE`、`MATCHING`、`PROFILE_ENGINE`、`PRODUCT` 讲系统怎么设计；`CURRENT_STATE_PRIVACY` 说明“此刻”的匹配与私密数据边界；`API_CONTRACTS` 是跨模块稳定接口；`OWNERSHIP` + `workstreams/A-PROFILE.md`、`B-ENCOUNTER.md`、`C-PLATFORM.md`、`D-RELEASE.md` 讲谁改什么；`DEVELOPMENT` 讲怎么跑；`SECURITY` 是生产依赖基线。
 
 ## 不入仓的数据
 

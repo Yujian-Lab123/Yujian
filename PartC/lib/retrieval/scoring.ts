@@ -1,6 +1,11 @@
 import { AXES, cosine, topAxes } from '../axes';
 import type { UserVectors } from '../db';
 import type { CandidateUser } from './candidate-filter';
+import {
+  directedCoverage,
+  generalizedKLSimilarity,
+  isConceptAxisVector,
+} from './directional-similarity';
 import type { RecallSource, RecalledCandidate } from './multi-recall';
 
 export const COARSE_WEIGHTS = {
@@ -14,6 +19,7 @@ export const COARSE_WEIGHTS = {
 
 export const RERANK_WEIGHTS = { coarse: 0.70, value: 0.30 } as const;
 export const FINAL_WEIGHTS = { rerank: 0.55, mutual: 0.45 } as const;
+export const PAIR_WEIGHTS = { longTerm: 0.40, value: 0.30, conversation: 0.20, current: 0.10 } as const;
 
 export interface RankingFeatures {
   lt: number;
@@ -25,8 +31,23 @@ export interface RankingFeatures {
   diversity: number;
   coarse: number;
   rerank: number;
+  forward: number;
+  backward: number;
   mutual: number;
   final: number;
+}
+
+export interface PairScoreBreakdown {
+  mode: 'concept-axis-directed' | 'embedding-cosine';
+  score: number;
+  long_term: number;
+  value: number;
+  conversation: number;
+  current: number;
+  coverage_long_term?: number;
+  coverage_value?: number;
+  gkl_long_term?: number;
+  gkl_value?: number;
 }
 
 export interface RecallDebug {
@@ -46,8 +67,10 @@ function clamp01(value: number): number {
 }
 
 function rankingSimilarity(left: number[], right: number[]): number {
-  if (!left.length || !right.length) return 0;
-  return clamp01(cosine(left, right));
+  if (!left.length || left.length !== right.length) return 0;
+  if (!left.every(Number.isFinite) || !right.every(Number.isFinite)) return 0;
+  const similarity = cosine(left, right);
+  return Number.isFinite(similarity) ? clamp01(similarity) : 0;
 }
 
 function intentFit(viewerIntents: string[], targetIntents: string[]): number {
@@ -71,15 +94,46 @@ export function rerankScore(coarse: number, value: number): number {
   return clamp01(RERANK_WEIGHTS.coarse * coarse + RERANK_WEIGHTS.value * value);
 }
 
-/** 单向配对分 A→B：长期 0.4 + 价值问题 0.3 + 对话风格 0.2 + 此刻 0.1。 */
-export function pairScore(a: UserVectors, b: UserVectors): number {
+/**
+ * 单向配对分 A→B。只有 16 维非负概念轴使用 Coverage/GKL；
+ * 通用 Embedding（包括 1024 维和负数）完整回退余弦，不能解释其单个维度。
+ */
+export function pairScoreBreakdown(a: UserVectors, b: UserVectors): PairScoreBreakdown {
+  const directional = [a.long_term, b.long_term, a.value, b.value].every(isConceptAxisVector);
+  const directionalDetails = directional ? {
+    coverage_long_term: directedCoverage(a.long_term, b.long_term),
+    coverage_value: directedCoverage(a.value, b.value),
+    gkl_long_term: generalizedKLSimilarity(a.long_term, b.long_term),
+    gkl_value: generalizedKLSimilarity(a.value, b.value),
+  } : null;
+  const longTerm = directionalDetails
+    ? 0.5 * directionalDetails.coverage_long_term + 0.5 * directionalDetails.gkl_long_term
+    : rankingSimilarity(a.long_term, b.long_term);
+  const value = directionalDetails
+    ? 0.5 * directionalDetails.coverage_value + 0.5 * directionalDetails.gkl_value
+    : rankingSimilarity(a.value, b.value);
+  const conversation = rankingSimilarity(a.conversation, b.conversation);
   const current = a.current && b.current ? rankingSimilarity(a.current, b.current) : 0;
-  return clamp01(
-    0.4 * rankingSimilarity(a.long_term, b.long_term)
-    + 0.3 * rankingSimilarity(a.value, b.value)
-    + 0.2 * rankingSimilarity(a.conversation, b.conversation)
-    + 0.1 * current,
+  const score = clamp01(
+    PAIR_WEIGHTS.longTerm * longTerm
+    + PAIR_WEIGHTS.value * value
+    + PAIR_WEIGHTS.conversation * conversation
+    + PAIR_WEIGHTS.current * current,
   );
+  return {
+    mode: directional ? 'concept-axis-directed' : 'embedding-cosine',
+    score,
+    long_term: longTerm,
+    value,
+    conversation,
+    current,
+    ...(directionalDetails ?? {}),
+  };
+}
+
+/** 保留旧导出，供 lib/ai/bridge.ts 和既有调用方兼容。 */
+export function pairScore(a: UserVectors, b: UserVectors): number {
+  return pairScoreBreakdown(a, b).score;
 }
 
 export function finalScore(rerank: number, mutual: number): number {
@@ -108,12 +162,14 @@ export function rankRecalledCandidates<TUser extends CandidateUser>(input: {
     const diversity = 0.4;
     const coarse = coarseScore({ lt, conv, cur, intent, novelty, diversity });
     const rerank = rerankScore(coarse, val);
-    const mutual = Math.min(pairScore(input.viewerVectors, candidate.vectors), pairScore(candidate.vectors, input.viewerVectors));
+    const forward = pairScore(input.viewerVectors, candidate.vectors);
+    const backward = pairScore(candidate.vectors, input.viewerVectors);
+    const mutual = Math.min(forward, backward);
     return {
       user: candidate.user,
       vectors: candidate.vectors,
       lt, val, conv, cur, intent, novelty, diversity,
-      coarse, rerank, mutual,
+      coarse, rerank, forward, backward, mutual,
       final: finalScore(rerank, mutual),
       recall: {
         sources: [...candidate.recallSources],

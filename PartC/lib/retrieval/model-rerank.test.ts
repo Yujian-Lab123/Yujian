@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ProfileArtifact } from '../profile/schema';
+import { buildCurrentStateMatchText } from '../current-state/privacy';
 import {
   applyModelRerankScores,
   buildRerankPersonText,
@@ -20,7 +21,7 @@ function ranked(id: string, mutual: number): RankedCandidate<RerankUser> {
     user: { ...user, id },
     vectors: { long_term: [1], value: [1], conversation: [1], current: null },
     lt: 1, val: 1, conv: 1, cur: 0, intent: 1, novelty: 1, diversity: 0.4,
-    coarse: 0.8, rerank: 0.8, mutual, final: 0.8,
+    coarse: 0.8, rerank: 0.8, forward: mutual + 0.1, backward: mutual, mutual, final: 0.8,
     recall: { sources: ['long_term'], scores: { long_term: 1 }, max_score: 1 },
   };
 }
@@ -37,9 +38,12 @@ describe('model rerank integration helpers', () => {
       },
       evidence_index: [{ excerpt: '这段原始证据不应发送' }],
     } as unknown as ProfileArtifact;
-    const text = buildRerankPersonText(user, artifact, '今晚想散步');
+    const privateNote = 'PRIVATE_NOTE_SENTINEL：今晚想散步';
+    const currentState = buildCurrentStateMatchText({ mood: '疲惫', activity: '想走走', connectionMode: '找同伴' });
+    const text = buildRerankPersonText(user, artifact, currentState);
     expect(text).toContain('长期关切：城市怎样影响人的连接？');
-    expect(text).toContain('此刻状态：今晚想散步');
+    expect(text).toContain('此刻状态：心情：疲惫；活动：想走走；交流：找同伴');
+    expect(text).not.toContain(privateNote);
     expect(text).not.toContain('这段原始证据不应发送');
   });
 
@@ -48,6 +52,10 @@ describe('model rerank integration helpers', () => {
     expect(result.map((item) => item.user.id)).toEqual(['b', 'a']);
     expect(result.find((item) => item.user.id === 'a')?.final).toBeCloseTo(0.55 * 0.95 + 0.45 * 0.2);
     expect(result.find((item) => item.user.id === 'b')?.final).toBeCloseTo(0.55 * 0.4 + 0.45 * 0.9);
+    const a = result.find((item) => item.user.id === 'a');
+    expect(a?.forward).toBeCloseTo(0.3);
+    expect(a?.backward).toBeCloseTo(0.2);
+    expect(a?.mutual).toBeCloseTo(0.2);
   });
 
   it('bounds the configured paid candidate pool', () => {

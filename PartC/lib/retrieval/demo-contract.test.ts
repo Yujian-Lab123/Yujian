@@ -28,8 +28,10 @@ describe('Encounter demo contracts', () => {
 
   it('Demo B preserves 阿屿 and the walking Current State signal', () => {
     const ayu = SEED_USERS.find((user) => user.id === 'u3');
-    expect(ayu?.current_state?.text).toMatch(/走走/);
-    expect(ayu?.current_state?.mood).toBe('想出去走走');
+    expect(ayu?.current_state).toEqual({
+      mood: '疲惫',
+      activity: '想走走',
+      connectionMode: '找同伴',
+    });
   });
 });
-

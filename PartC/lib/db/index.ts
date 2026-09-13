@@ -1,5 +1,13 @@
 import { desc, eq } from 'drizzle-orm';
 import { AXES, cosine, mask, vec, CONVERSATION_AXES, VALUE_AXES, stateVec, type Vec } from '../axes';
+import {
+  buildCurrentStateMatchText,
+  decodeCurrentState,
+  encodeCurrentState,
+  matchTextFromStoredCurrentState,
+  type CurrentStateSelection,
+  type PrivateNoteProcessing,
+} from '../current-state/privacy';
 import { db } from './client';
 import { currentStateExpiresAt, isCurrentStateActive } from './current-state';
 import { contents, currentStates, userVectors } from './schema';
@@ -100,31 +108,38 @@ export async function getUserVectors(userId: string): Promise<UserVectors> {
   const [latestState] = await db.select().from(currentStates)
     .where(eq(currentStates.userId, userId)).orderBy(desc(currentStates.createdAt)).limit(1);
   const activeState = latestState && isCurrentStateActive(latestState.expiresAt, now) ? latestState : null;
+  const currentMatchText = activeState ? matchTextFromStoredCurrentState(activeState.text) : null;
   return {
     long_term: row.longTerm,
     value: row.value,
     conversation: row.conversation,
-    current: activeState ? stateVec(activeState.text || '') : null,
+    current: currentMatchText ? stateVec(currentMatchText) : null,
   };
 }
 
-export async function setCurrentState(userId: string, textValue: string, mood: string): Promise<string> {
+export async function setCurrentState(
+  userId: string,
+  selection: CurrentStateSelection,
+  privateNote: PrivateNoteProcessing,
+): Promise<string> {
   const id = `cs-${userId}-${Date.now()}`;
-  const current = stateVec(textValue);
+  const storedText = encodeCurrentState(selection, privateNote);
+  const matchText = buildCurrentStateMatchText(selection);
+  const current = stateVec(matchText);
   const expiresAt = currentStateExpiresAt();
   await db.transaction(async (tx) => {
     await tx.insert(currentStates).values({
       id,
       userId,
-      text: textValue,
-      mood,
+      text: storedText,
+      mood: selection.mood,
       expiresAt,
     });
     await tx.update(userVectors).set({ current, updatedAt: new Date() }).where(eq(userVectors.userId, userId));
   });
   // P5 是增强路径：未配置 Embedding、尚未迁移或外部调用失败都不影响原有状态提交。
   try {
-    await syncCurrentStateVector(userId, textValue, expiresAt);
+    await syncCurrentStateVector(userId, matchText, expiresAt);
   } catch (error) {
     console.warn('[current-state] pgvector 同步失败，继续使用内存向量：', error);
   }
@@ -136,6 +151,22 @@ export async function getLatestCurrentState(userId: string) {
   const [state] = await db.select().from(currentStates)
     .where(eq(currentStates.userId, userId)).orderBy(desc(currentStates.createdAt)).limit(1);
   return state && isCurrentStateActive(state.expiresAt, now) ? state : null;
+}
+
+/** 面向应用层的脱敏读取；旧版自由文本状态会被视为不可用。 */
+export async function getLatestStructuredCurrentState(userId: string) {
+  const state = await getLatestCurrentState(userId);
+  if (!state) return null;
+  const decoded = decodeCurrentState(state.text);
+  if (!decoded) return null;
+  return {
+    id: state.id,
+    userId: state.userId,
+    selection: decoded.match,
+    privateNoteStatus: decoded.privateNote.status,
+    expiresAt: state.expiresAt,
+    createdAt: state.createdAt,
+  };
 }
 
 export async function hasUserVectors(userId: string): Promise<boolean> {

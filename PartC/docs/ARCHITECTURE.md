@@ -46,8 +46,8 @@ docs/                 # 架构 / 匹配 / 产品文档
 | POST /api/auth/demo | Demo 登录（比赛演示切换身份） |
 | GET /api/auth/zhihu、/api/auth/callback | 真实知乎 OAuth（P2 已接入，协议对齐官方 hello-world-oauth）；回调 param 为 `authorization_code`（兼容 `code`），可能不返回 `state` |
 | GET /api/auth/zhihu/status | OAuth 脱敏诊断：凭证长度 / sha256 前缀 / 误填警告 / 最近一次交换阶段，绝不输出完整密钥 |
-| GET /api/me | 用户 + 理解 + 此刻状态 |
-| POST /api/me/current-state | 此刻状态（进入 current_state 向量，自动衰减待 P9） |
+| GET /api/me | 用户 + 理解 + 脱敏后的结构化此刻状态 |
+| POST /api/me/current-state | 白名单结构化标签进入 current 向量；选填私密文字只临时交给 LLM，原文不保存/回传/展示 |
 | POST /api/me/toggle | 遇见开关 |
 | POST /api/profile/analyze | Onboarding 快速理解入口（现有 16 维 Mock）；完整 P4 画像由下方任务入口异步生成 |
 | POST /api/profile/generate | P4 真实 Profile 任务入口；Worker 执行摘要/提取/综合/Embedding，并自动复用上一版产物 |
@@ -62,6 +62,7 @@ docs/                 # 架构 / 匹配 / 产品文档
 - app_key / Access Secret 只放服务器端环境变量（`.env.local` / 部署平台 Secret），不进前端、不进 Git。
 - 真实 OAuth：`openapi.zhihu.com/authorize` → `/access_token`（表单 `grant_type=authorization_code`，字段 `code` 承载 `authorization_code`）；用户 API 同时带 `Authorization: Bearer <Access Secret>` 与 `X-OAuth-Token`。
 - 回调必须公网 HTTPS 且与开放平台登记值完全一致；本地仅预览。
+- “此刻”自由文本不进入召回、Embedding、Reranker 或推荐展示；详见 `docs/CURRENT_STATE_PRIVACY.md`。
 
 ## 成本策略
 

@@ -159,7 +159,13 @@ export async function exchangeToken(code: string): Promise<TokenResult> {
   return { accessToken: String(token), expiresIn };
 }
 
-// ---- 开放平台用户接口（双凭证头） ----
+// ---- 开放平台用户接口 ----
+// 官方文档（hackathon-user-profile-api）：获取授权用户基础信息只需 `Authorization: Bearer <用户 access_token>`，
+// 不使用 Access Secret、X-OAuth-Token 或时间戳；历史实现误用了双凭证头，导致接口返回鉴权失败并被兜底成匿名身份。
+
+function profileHeaders(accessToken: string): HeadersInit {
+  return { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' };
+}
 
 function userHeaders(accessToken: string): HeadersInit {
   const { accessSecret } = zhihuCredentials();
@@ -178,20 +184,36 @@ export interface ZhihuProfile {
 
 /** /user 无正式响应 schema（官方记录），字段取实测并做多形态兼容 */
 export async function fetchZhihuProfile(accessToken: string): Promise<ZhihuProfile> {
-  const res = await fetch(OPEN_PROFILE_URL, { headers: userHeaders(accessToken), signal: AbortSignal.timeout(20_000) });
-  const payload = await res.json().catch(() => null);
+  const res = await fetch(OPEN_PROFILE_URL, { headers: profileHeaders(accessToken), signal: AbortSignal.timeout(20_000) });
+  const rawText = await res.text();
+  // uid 为 int64，可能超出 JS 安全整数范围：先从原文无损提取，再整体解析。
+  const uidMatch = rawText.match(/"uid"\s*:\s*(\d+)/);
+  const uid = uidMatch ? uidMatch[1] : '';
+  let payload: any = null;
+  try { payload = JSON.parse(rawText); } catch { payload = null; }
+
   if (!res.ok) throw Object.assign(new Error(`获取知乎用户信息失败：HTTP ${res.status}`), { code: 'PROFILE_FAILED' });
-  const source = payload?.data || payload?.Data || payload?.user || payload;
-  const name = source?.name || source?.Fullname || source?.fullname || '';
+  // 鉴权失败时接口仍可能返回 HTTP 200 + { code, data: "Access token is not valid" }：必须停止，不能建立匿名会话。
+  const errorText = typeof payload?.data === 'string' ? payload.data : (typeof payload?.message === 'string' ? payload.message : '');
+  const hasIdentity = Boolean(uid || payload?.hash_id || payload?.fullname || payload?.Fullname || payload?.name);
+  if (!hasIdentity) {
+    throw Object.assign(new Error(`获取知乎用户信息失败：${errorText || '响应中没有有效用户标识'}`), { code: 'PROFILE_FAILED' });
+  }
+
+  const source = payload?.data && typeof payload.data === 'object' ? payload.data : (payload?.user || payload);
+  const name = source?.fullname || source?.Fullname || source?.name || source?.Name || '';
+  const avatarUrl = source?.avatar_path || source?.avatarPath || source?.avatar_url || source?.AvatarUrl || null;
+  const headline = source?.headline || source?.Headline || null;
   const profileUrl = source?.url || source?.Url || null;
-  // 稳定 ID：个人主页 URL 的 url_token（/people/<url_token>），拿不到则退回昵称
+  const hashId = source?.hash_id ? String(source.hash_id) : '';
   const urlToken = profileUrl ? String(profileUrl).split('/people/')[1]?.split(/[/?]/)[0] : '';
-  const zhihuUserId = urlToken || String(name) || `anon-${createHash('sha256').update(accessToken).digest('hex').slice(0, 8)}`;
+  // 用户标识优先级：uid（无损）→ hash_id → 主页 url_token → 昵称兜底
+  const zhihuUserId = uid || hashId || urlToken || String(name) || `anon-${createHash('sha256').update(accessToken).digest('hex').slice(0, 8)}`;
   return {
     zhihuUserId,
     name: String(name || '知乎用户'),
-    avatarUrl: source?.avatar_url || source?.AvatarUrl || null,
-    headline: source?.headline || source?.Headline || null,
+    avatarUrl: avatarUrl ? String(avatarUrl) : null,
+    headline: headline ? String(headline) : null,
     profileUrl,
   };
 }

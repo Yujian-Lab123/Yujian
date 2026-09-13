@@ -79,7 +79,7 @@ async function main() {
   if (typeof flags.user === 'string') targets = candidates.filter((c) => c.userId === flags.user);
   else if (typeof flags['zhihu-id'] === 'string') targets = candidates.filter((c) => c.zhihuUserId === flags['zhihu-id']);
   else if (flags.all) targets = candidates.slice(0, Number(flags.limit ?? 10));
-  else targets = candidates.slice(0, 1); // 默认最近一个（清单按插入顺序，取最后一个更合理时可用 --user 指定）
+  else targets = candidates; // 默认处理全部真实账号（可用 --user/--all --limit 收窄）
 
   if (targets.length === 0) {
     console.error('[real-user] 未匹配到用户。先用 --list 查看可用 userId。');
@@ -104,7 +104,9 @@ async function main() {
     }
 
     const artifact = await analyzeProfile(items, { maxItems: Number(flags['max-items'] ?? 80) });
-    const slug = slugifyName(target.name || target.userId);
+    // 真实账号名字可能重复（如匿名「知乎用户」），slug 追加知乎 id 短码保证唯一。
+    const shortId = target.zhihuUserId.replace(/^anon-/, '').slice(0, 8) || target.userId.slice(-8);
+    const slug = slugifyName(`${target.name || 'user'}-${shortId}`);
 
     // 产物文件（本地开发可见；容器内可能只读，失败不影响数据库写入）
     try {

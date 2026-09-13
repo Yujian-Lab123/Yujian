@@ -1,0 +1,15 @@
+@font-face {
+  font-family: 'Yujian Calligraphy';
+  src: url('/fonts/ma-shan-zheng/MaShanZheng-Regular.ttf') format('truetype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+.wordmark {
+  font-family: 'Yujian Calligraphy', STKaiti, KaiTi, serif;
+  font-size: 2rem;
+  font-weight: 400;
+  letter-spacing: .08em;
+  line-height: 1;
+}

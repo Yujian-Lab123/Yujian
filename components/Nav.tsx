@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { CaretDownIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { useMe } from '@/lib/useMe';
+import styles from './Nav.module.css';
 
 const productNav = [
   ['个人', '/profile'],
@@ -13,9 +14,9 @@ const productNav = [
 ] as const;
 
 export function Logo({ tone }: { tone: 'blue' | 'warm' }) {
-  const color = tone === 'blue' ? 'text-ink-900' : 'text-sumi-800';
+  const color = tone === 'blue' ? 'text-ink-900' : 'text-[#0d4079]';
   return (
-    <span className={`font-display text-2xl font-bold tracking-widest ${color}`}>
+    <span className={`${styles.wordmark} ${color}`}>
       遇见
       <span className="ml-1 inline-block h-4 w-4 translate-y-0.5 rounded-sm bg-red-700/80 text-center text-[9px] leading-4 text-white">遇</span>
     </span>

@@ -5,20 +5,18 @@ import Link from 'next/link';
 import {
   ArrowRight,
   ArrowsClockwise,
-  CaretDown,
   Check,
   CheckCircle,
   Circle,
   LockSimple,
-  MagnifyingGlass,
   Plus,
   Sparkle,
   X,
 } from '@phosphor-icons/react';
 import { buildContextualPersona } from '@/lib/contextual-persona';
 import { useMe } from '@/lib/useMe';
-import { usePathname } from 'next/navigation';
 import { useMemo, useRef, useState } from 'react';
+import Nav from '@/components/Nav';
 
 type Visibility = 'private' | 'candidates' | 'mutual';
 
@@ -72,75 +70,6 @@ const visibilityLabels: Record<Visibility, string> = {
   mutual: '双方同意后可见',
 };
 
-function SideHeader({ name }: { name: string }) {
-  // 用 usePathname 判定高亮，与 components/Nav.tsx 保持一致。
-  // 之前这里硬编码 href === '/side'，导致移动端导航 / 未来子路由高亮行为会和全局导航对不上。
-  const pathname = usePathname();
-  const links = [
-    ['个人', '/profile'],
-    ['此刻', '/me'],
-    ['侧面', '/side'],
-    ['遇见', '/encounter'],
-    ['关于遇见', '/about'],
-  ] as const;
-  const isActive = (href: string) => pathname === href || (href === '/encounter' && pathname.startsWith('/encounter'));
-
-  return (
-    <header className="relative z-30 border-b border-[#b7a98e]/20 bg-[#fbf8f1]/90 backdrop-blur-md">
-      <div className="mx-auto flex min-h-[74px] max-w-[1280px] items-center gap-8 px-5 lg:px-8">
-        <Link href="/profile" className="flex shrink-0 items-center gap-4" aria-label="前往个人画像">
-          <span className="font-display text-[28px] font-bold tracking-[0.16em] text-[#173e70]">遇见</span>
-          <span className="hidden border-l border-[#c8b998] pl-4 text-[11px] leading-5 tracking-[0.08em] text-[#65758a] sm:block">
-            在真实的生活里<br />遇见有趣的灵魂
-          </span>
-        </Link>
-
-        <nav className="ml-auto hidden h-[74px] items-stretch lg:flex" aria-label="主要导航">
-          {links.map(([label, href]) => (
-            <Link
-              key={label}
-              href={href}
-              className={`flex items-center border-b-2 px-6 font-display text-[15px] font-semibold tracking-[0.08em] transition-colors ${
-                isActive(href)
-                  ? 'border-[#1769d7] text-[#1258bd]'
-                  : 'border-transparent text-[#173e70] hover:border-[#b7c8df] hover:text-[#1258bd]'
-              }`}
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
-
-        {/* 与 components/Nav.tsx 相同的右栏占位槽宽度，保证切页时导航不漂移 */}
-        <div className="flex shrink-0 items-center justify-end gap-4 xl:w-[340px]">
-          <label className="hidden w-[250px] items-center gap-2 rounded-full border border-[#9dadc2]/35 bg-white/55 px-4 py-2 text-[#77859a] xl:flex">
-            <MagnifyingGlass size={18} aria-hidden />
-            <input className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[#8f99a7]" placeholder="搜索人、话题或内容…" />
-          </label>
-
-          <Link href="/me" className="flex shrink-0 items-center gap-2 text-[#173e70]" aria-label="打开我的页面">
-            <span className="grid h-9 w-9 place-items-center rounded-full border border-[#c8b998]/70 bg-[#e6dcc9] font-display text-sm">{name.slice(0, 1)}</span>
-            <CaretDown size={14} aria-hidden />
-          </Link>
-        </div>
-      </div>
-      <nav className="mx-auto flex max-w-[1280px] overflow-x-auto border-t border-[#b7a98e]/15 px-3 lg:hidden" aria-label="移动端主要导航">
-        {links.map(([label, href]) => (
-          <Link
-            key={label}
-            href={href}
-            className={`shrink-0 border-b-2 px-4 py-2.5 font-display text-sm ${
-              isActive(href) ? 'border-[#1769d7] text-[#1258bd]' : 'border-transparent text-[#536a84]'
-            }`}
-          >
-            {label}
-          </Link>
-        ))}
-      </nav>
-    </header>
-  );
-}
-
 function SideSkeleton() {
   // 骨架版式与真实页保持一致（左 2.15fr / 右 0.85fr 两栏），
   // 否则 me.loading 结束后真实内容涌入，还会再跳一次。
@@ -153,15 +82,7 @@ function SideSkeleton() {
     >
       <span className="sr-only">正在读取侧面</span>
 
-      <div className="flex min-h-[74px] items-center gap-8 border-b border-[#b7a98e]/20 bg-[#fbf8f1]/85 px-5 lg:px-8">
-        <div className="mo-skeleton-warm h-6 w-[70px]" />
-        <div className="ml-auto hidden gap-5 lg:flex">
-          {[46, 40, 40, 44, 62].map((w, i) => (
-            <div key={i} className="mo-skeleton-warm h-3.5" style={{ width: w }} />
-          ))}
-        </div>
-        <div className="mo-skeleton-warm h-9 w-9 rounded-full" />
-      </div>
+      <Nav tone="warm" tagline="在真实的生活里，遇见有趣的灵魂" />
 
       <div className="mo-page-in mx-auto grid max-w-[1280px] gap-3 px-4 pb-12 pt-3 lg:grid-cols-[minmax(0,2.15fr)_minmax(320px,0.85fr)] lg:px-8">
         <section className="overflow-hidden rounded-xl border border-[#b8ab94]/30 bg-[#fffdf8]/95">
@@ -326,7 +247,7 @@ export default function SidePage() {
       className="min-h-screen bg-[#f7f1e7] bg-[length:max(1680px,100%)_auto] bg-top bg-no-repeat text-[#1a416f]"
       style={{ backgroundImage: "url('/images/profile/ink-landscape-bg-v1.png')" }}
     >
-      <SideHeader name={me.user?.name || '遇'} />
+      <Nav tone="warm" tagline="在真实的生活里，遇见有趣的灵魂" />
 
       <div className="mx-auto grid max-w-[1280px] gap-3 px-4 pb-12 pt-3 lg:grid-cols-[minmax(0,2.15fr)_minmax(320px,0.85fr)] lg:px-8">
         <section className="overflow-hidden rounded-xl border border-[#b8ab94]/30 bg-[#fffdf8]/95 shadow-[0_14px_40px_rgba(54,46,31,0.08)] backdrop-blur-sm">

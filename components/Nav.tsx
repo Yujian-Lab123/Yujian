@@ -1,49 +1,60 @@
 'use client';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { CaretDownIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { useMe } from '@/lib/useMe';
-
-const productNav = [
-  ['个人', '/profile'],
-  ['此刻', '/me'],
-  ['侧面', '/side'],
-  ['遇见', '/encounter'],
-  ['关于遇见', '/about'],
-] as const;
+import { useDemoMe } from '@/lib/experience-mode/useDemoMe';
+import { isNavItemActive, resolveNav } from '@/lib/experience-mode/nav';
+import styles from './Nav.module.css';
 
 export function Logo({ tone }: { tone: 'blue' | 'warm' }) {
-  const color = tone === 'blue' ? 'text-ink-900' : 'text-sumi-800';
+  const color = tone === 'blue' ? 'text-ink-900' : 'text-[#0d4079]';
   return (
-    <span className={`font-display text-2xl font-bold tracking-widest ${color}`}>
+    <span className={`${styles.wordmark} ${color}`}>
       遇见
       <span className="ml-1 inline-block h-4 w-4 translate-y-0.5 rounded-sm bg-red-700/80 text-center text-[9px] leading-4 text-white">遇</span>
     </span>
   );
 }
 
+/** 导航始终随路由模式切换：/demo/** 下全部链接保持 /demo 前缀并显示演示徽章。 */
 export default function Nav({ tone, tagline, right }: { tone: 'blue' | 'warm'; tagline: string; right?: React.ReactNode }) {
   const me = useMe();
-  const pathname = usePathname();
-  const isActive = (href: string) => pathname === href || (href === '/encounter' && pathname.startsWith('/encounter'));
+  const demoMe = useDemoMe();
+  const router = useRouter();
+  const pathname = usePathname() || '/';
+  const { isDemo, items } = resolveNav(pathname);
+  const activeMe = isDemo ? demoMe : me;
+  const accountHref = isDemo ? '/demo/me' : activeMe.loggedIn ? '/me' : '/about';
+
+  const exitDemo = async () => {
+    await fetch('/api/auth/demo', { method: 'DELETE' }).catch(() => undefined);
+    router.replace('/about');
+    router.refresh();
+  };
   return (
     <header className="relative z-30 border-b border-[#b7a98e]/20 bg-[#fbf8f1]/90 backdrop-blur-md">
       <div className="mx-auto flex min-h-[74px] max-w-[1280px] items-center gap-8 px-5 lg:px-8">
-        <Link href="/profile" className="flex shrink-0 items-center gap-4" aria-label="前往个人画像">
+        <Link href={isDemo ? '/demo/profile' : '/profile'} className="flex shrink-0 items-center gap-4" aria-label={isDemo ? '前往演示画像' : '前往个人画像'}>
           <Logo tone={tone} />
           <span className="hidden border-l border-[#c8b998] pl-4 text-[11px] leading-5 tracking-[0.08em] text-[#65758a] sm:block">
             在真实的生活里<br />遇见有趣的灵魂
           </span>
+          {isDemo && (
+            <span className="rounded-full border border-[#b8860b]/50 bg-[#fdf3d8] px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.12em] text-[#8a6d1a]">
+              演示模式
+            </span>
+          )}
         </Link>
 
         <nav className="ml-auto hidden h-[74px] items-stretch lg:flex" aria-label="主要导航">
-          {productNav.map(([label, href]) => (
+          {items.map(([label, href]) => (
             <Link
               key={label}
               href={href}
-              aria-current={isActive(href) ? 'page' : undefined}
+              aria-current={isNavItemActive(href, pathname) ? 'page' : undefined}
               className={`flex items-center border-b-2 px-6 font-display text-[15px] font-semibold tracking-[0.08em] transition-colors ${
-                isActive(href)
+                isNavItemActive(href, pathname)
                   ? 'border-[#1769d7] text-[#1258bd]'
                   : 'border-transparent text-[#173e70] hover:border-[#b7c8df] hover:text-[#1258bd]'
               }`}
@@ -59,29 +70,48 @@ export default function Nav({ tone, tagline, right }: { tone: 'blue' | 'warm'; t
           nav 块跟着右栏宽度左右漂移 —— 这就是切页时导航"跳一下"的根因。
         */}
         <div className="flex shrink-0 items-center justify-end gap-4 xl:w-[340px]">
-          <label className="hidden w-[250px] items-center gap-2 rounded-full border border-[#9dadc2]/35 bg-white/55 px-4 py-2 text-[#77859a] xl:flex">
-            <MagnifyingGlassIcon size={18} aria-hidden />
-            <input className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[#8f99a7]" placeholder="搜索人、话题或内容…" aria-label="搜索人、话题或内容" />
-          </label>
+          {!isDemo && (
+            <label className="hidden w-[250px] items-center gap-2 rounded-full border border-[#9dadc2]/35 bg-white/55 px-4 py-2 text-[#77859a] xl:flex">
+              <MagnifyingGlassIcon size={18} aria-hidden />
+              <input className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[#8f99a7]" placeholder="搜索人、话题或内容…" aria-label="搜索人、话题或内容" />
+            </label>
+          )}
 
           {right ?? (
-            <Link href="/me" className="flex shrink-0 items-center gap-2 text-[#173e70]" aria-label="打开我的页面">
-              <span className="grid h-9 w-9 place-items-center rounded-full border border-[#c8b998]/70 bg-[#e6dcc9] font-display text-sm">
-                {me.loggedIn ? me.user?.name?.slice(0, 1) : '遇'}
-              </span>
+            <>
+              {isDemo && (
+                <button type="button" onClick={exitDemo} className="hidden rounded-full border border-[#d4c7ae] bg-white/65 px-3 py-1.5 text-xs text-[#7b6745] transition hover:border-[#b8860b] hover:text-[#8a6d1a] xl:inline-flex">
+                  退出演示
+                </button>
+              )}
+              <Link href={accountHref} className="flex shrink-0 items-center gap-2 text-[#173e70]" aria-label={isDemo ? '打开演示身份的此刻页面' : activeMe.loggedIn ? '打开我的此刻页面' : '前往登录入口'}>
+              {activeMe.loggedIn && activeMe.user?.avatarUrl ? (
+                // 两种模式均优先显示对应身份的知乎头像；缺失时再回退为身份首字。
+                <img
+                  src={String(activeMe.user.avatarUrl)}
+                  alt={String(activeMe.user?.name || '头像')}
+                  referrerPolicy="no-referrer"
+                  className="h-9 w-9 rounded-full border border-[#c8b998]/70 object-cover"
+                />
+              ) : (
+                <span className="grid h-9 w-9 place-items-center rounded-full border border-[#c8b998]/70 bg-[#e6dcc9] font-display text-sm">
+                  {isDemo ? '演' : activeMe.loggedIn ? activeMe.user?.name?.slice(0, 1) : '遇'}
+                </span>
+              )}
               <CaretDownIcon size={14} aria-hidden />
-            </Link>
+              </Link>
+            </>
           )}
         </div>
       </div>
-      <nav className="mx-auto flex max-w-[1280px] overflow-x-auto border-t border-[#b7a98e]/15 px-3 lg:hidden" aria-label="移动端主要导航">
-        {productNav.map(([label, href]) => (
+      <nav className="mx-auto flex max-w-[1280px] overflow-x-auto border-t border-[#b7a98e]/15 px-3 lg:hidden" aria-label="主要导航">
+        {items.map(([label, href]) => (
           <Link
             key={label}
             href={href}
-            aria-current={isActive(href) ? 'page' : undefined}
+            aria-current={isNavItemActive(href, pathname) ? 'page' : undefined}
             className={`shrink-0 border-b-2 px-4 py-2.5 font-display text-sm ${
-              isActive(href) ? 'border-[#1769d7] text-[#1258bd]' : 'border-transparent text-[#536a84]'
+              isNavItemActive(href, pathname) ? 'border-[#1769d7] text-[#1258bd]' : 'border-transparent text-[#536a84]'
             }`}
           >
             {label}

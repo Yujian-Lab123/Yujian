@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { connections, db, getContent } from '@/lib/db';
 import { getUser } from '@/lib/db/users';
-import { getSessionUserId } from '@/lib/session';
+import { getRealSessionUserId } from '@/lib/experience-mode/session';
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  const userId = await getSessionUserId();
+  const userId = await getRealSessionUserId();
   if (!userId) return NextResponse.json({ ok: false, loginRequired: true }, { status: 401 });
   const [row] = await db.select().from(connections).where(eq(connections.id, id)).limit(1);
   if (!row || (row.userA !== userId && row.userB !== userId)) return NextResponse.json({ ok: false, error: '连接不存在' }, { status: 404 });

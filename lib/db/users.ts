@@ -115,3 +115,14 @@ export async function saveZhihuAuth(
     set: { userId, encryptedAccessToken, tokenExpiresAt: expiresAt ? new Date(expiresAt) : null, profile, rawContents, updatedAt: new Date() },
   });
 }
+
+/** 身份附加信息（头像/主页/一句话），来自 external_identities.profile，
+ *  供 /api/me 等接口在用户对象上附带展示字段（users 表本身不存头像列）。 */
+export async function getIdentityExtras(userId: string): Promise<{ avatarUrl: string | null; profileUrl: string | null; headline: string | null } | null> {
+  const [row] = await db.select({ profile: externalIdentities.profile }).from(externalIdentities)
+    .where(and(eq(externalIdentities.provider, 'zhihu'), eq(externalIdentities.userId, userId))).limit(1);
+  if (!row) return null;
+  const p = (row.profile || {}) as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === 'string' && v ? v : null);
+  return { avatarUrl: str(p.avatarUrl), profileUrl: str(p.profileUrl), headline: str(p.headline) };
+}

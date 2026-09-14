@@ -3,6 +3,7 @@ import { contents, currentStates, users } from './schema';
 import { SEED_CONTENTS, SEED_USERS } from './seed';
 import { computeUserVectors } from './index';
 import { vec } from '../axes';
+import { buildMockCurrentStateSeeds } from '../present-self/mock-history';
 
 export async function seedDatabase(): Promise<void> {
   await db.transaction(async (tx) => {
@@ -30,6 +31,15 @@ export async function seedDatabase(): Promise<void> {
           mood: user.current_state.mood,
         }).onConflictDoNothing();
       }
+    }
+    for (const state of buildMockCurrentStateSeeds()) {
+      await tx.insert(currentStates).values({
+        id: state.id,
+        userId: state.userId,
+        text: state.text,
+        mood: state.mood,
+        createdAt: state.createdAt,
+      }).onConflictDoNothing();
     }
     for (const content of SEED_CONTENTS) {
       await tx.insert(contents).values({

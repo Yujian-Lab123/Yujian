@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server';
 import { randomBytes } from 'node:crypto';
 import { db, feedback } from '@/lib/db';
 import { getRec } from '@/lib/retrieval/matcher';
-import { getSessionUserId } from '@/lib/session';
+import { getRealSessionUserId } from '@/lib/experience-mode/session';
 
 // 反馈类型严格区分：喜欢内容 ≠ 想认识作者（概览 §三十三）
 const TYPES = ['not_interested', 'content_interesting', 'learn_more', 'want_to_meet'];
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  const uid = await getSessionUserId();
+  const uid = await getRealSessionUserId();
   if (!uid) return NextResponse.json({ ok: false, loginRequired: true }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const type = String(body.type || '');

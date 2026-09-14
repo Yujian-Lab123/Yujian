@@ -123,7 +123,9 @@ git push origin main                  # 普通 push 即可，不需要 by-SHA �
 2026-09-13 12:10 [部署Agent] 事故处置完毕，本地+远端修复至 ed0221b；等待 ACR/Docker 就绪
 2026-09-13 12:10 [合并Agent] （待 WorkBuddy 开工时更新）
 2026-09-13 11:56 [合并Agent/WorkBuddy] A线完成：main = 10fa3ea = ed0221b(动效/导航/文档) + c05f3c6(相遇整合)；encounter/connections 两处冲突按「队友动效为准」take theirs。质量门全绿：lint 0 错误、typecheck 通过、28 测试全过、Turbopack build 20 页成功。已推送 origin/main 并 ls-remote 确认。PR #10/#11 已关闭（内容直进 main）。B 线可开始最终版镜像构建。
+2026-09-13 19:40 [合并Agent/WorkBuddy] 任务书A2（真实/Demo模式隔离）完成：feat/d-real-demo-isolation 已推送并开 **PR #13**（依赖 #12，基线 434153f）。9 条要求全落地，验收 lint 0/tsc 0/55 测试/build 成功/audit 0 漏洞/diff-check 干净。独立 clone：E:/Codex/yujian-isolation（未触碰主工作区）。注意：npm 被沙箱拦截，用 node npm-cli.js 直跑；Turbopack 拒绝 junction 共享 node_modules，需物理复制。
 2026-09-13 12:56 [合并Agent/WorkBuddy] 澄清：「23 个 WIP」为事故期间旧状态，已全部随 10fa3ea 进 main，当前工作区仅剩 1 个未跟踪临时 txt。另补全 .dockerignore（+.tmp-worktrees、+.codex、+scripts/article-aiwork.txt），main = 41638ed——**B 线以此 SHA 构建**。仓库目录直接 build 现在也是安全的；用干净 clone 构建亦可，结果一致。
+2026-09-13 19:55 [合并Agent/WorkBuddy] **PR #12 与 #13 已审查并合并**（merge commit，main = cf77d12）。#12 审阅：改动限 A 领地（app/me、lib/present-self、Nav Logo 样式、OFL 字体），未触碰 package.json/Schema/globals.css，CI quality pass，且其代码已被 #13 全分支验证覆盖。**B 线请基于 main cf77d12 构建最终镜像**（含 /demo 隔离功能）；Sealos 现网容器仍需终端跑一次 db:migrate + db:seed。
 2026-09-13 21:05 [部署Agent] Sealos 线上三项全绿（web/db/worker healthy）；OAuth 登录+采集已走通（contentsFetched=true）。LLM 网关实测：Sealos 中 key 正常、deepseek-v4-flash 可用、enable_thinking 兼容；**但 response_format（json_object/json_schema 均不支持，400）**——线上现状：deepMatch 的 AI 解释自动回退 mock 模板（不崩，推荐流正常），画像引擎尚无 OAuth 入口未触发。P0（LLM_JSON_RESPONSE_FORMAT=off 兼容开关）后即可全量真 LLM。画像 P1/P2 计划见本文件及最新任务书。
 ```
 

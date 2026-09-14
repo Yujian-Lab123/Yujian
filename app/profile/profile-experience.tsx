@@ -1,11 +1,10 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import Nav from '@/components/Nav';
 import {
   ArrowSquareOutIcon,
-  CaretDownIcon,
   CaretRightIcon,
   ChatCircleDotsIcon,
   ClockIcon,
@@ -13,7 +12,6 @@ import {
   FileTextIcon,
   FlagIcon,
   LightbulbIcon,
-  MagnifyingGlassIcon,
   QuotesIcon,
   ScalesIcon,
   StackIcon,
@@ -46,7 +44,6 @@ type MapLayout = {
   decisionsTop: number;
   valuesTop: number;
   worksTop: number;
-  bottomTop: number;
   canvasHeight: number;
 };
 
@@ -55,17 +52,8 @@ const BASE_LAYOUT: MapLayout = {
   decisionsTop: 468,
   valuesTop: 618,
   worksTop: 602,
-  bottomTop: 840,
-  canvasHeight: 1020,
+  canvasHeight: 835,
 };
-
-const productNav = [
-  ['个人', '/profile'],
-  ['此刻', '/me'],
-  ['侧面', '/side'],
-  ['遇见', '/encounter'],
-  ['关于遇见', '/about'],
-] as const;
 
 function range(from?: string, to?: string) { return [from?.slice(0, 4), to?.slice(0, 4)].filter(Boolean).join('–'); }
 function short(value: string, length: number) { return value.length > length ? `${value.slice(0, length)}…` : value; }
@@ -85,15 +73,14 @@ function cubic(start: Point, controlA: Point, controlB: Point, end: Point) {
   return `M ${start.x.toFixed(1)} ${start.y.toFixed(1)} C ${controlA.x.toFixed(1)} ${controlA.y.toFixed(1)}, ${controlB.x.toFixed(1)} ${controlB.y.toFixed(1)}, ${end.x.toFixed(1)} ${end.y.toFixed(1)}`;
 }
 
-function windingPath(points: Point[]) {
+function timelinePath(points: Point[]) {
   if (points.length < 2) return '';
   return points.slice(0, -1).reduce((path, point, index) => {
-    const previous = points[index - 1] || point;
     const next = points[index + 1];
-    const after = points[index + 2] || next;
-    const controlA = { x: point.x + (next.x - previous.x) / 6, y: point.y + (next.y - previous.y) / 6 };
-    const controlB = { x: next.x - (after.x - point.x) / 6, y: next.y - (after.y - point.y) / 6 };
-    return `${path} C ${controlA.x.toFixed(1)} ${controlA.y.toFixed(1)}, ${controlB.x.toFixed(1)} ${controlB.y.toFixed(1)}, ${next.x.toFixed(1)} ${next.y.toFixed(1)}`;
+    // Each segment stays inside the rectangle formed by its two nodes. Unlike a
+    // Catmull-Rom spline this cannot overshoot downward into the timeline copy.
+    const middleX = point.x + (next.x - point.x) / 2;
+    return `${path} C ${middleX.toFixed(1)} ${point.y.toFixed(1)}, ${middleX.toFixed(1)} ${next.y.toFixed(1)}, ${next.x.toFixed(1)} ${next.y.toFixed(1)}`;
   }, `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`);
 }
 
@@ -108,71 +95,7 @@ function DimensionTitle({ no, title, note }: { no: string; title: string; note: 
   return <div className="reference-dimension-title"><b>{no}</b><span><strong>{title}</strong><small>{note}</small></span></div>;
 }
 
-function ProfileHeader({ query, onQueryChange }: { query: string; onQueryChange: (value: string) => void }) {
-  return (
-    <header className="relative z-30 border-b border-[#b7a98e]/20 bg-[#fbf8f1]/90 backdrop-blur-md">
-      <div className="mx-auto flex min-h-[74px] max-w-[1280px] items-center gap-8 px-5 lg:px-8">
-        <Link href="/profile" className="flex shrink-0 items-center gap-4" aria-label="前往个人画像">
-          <span className="font-display text-[28px] font-bold tracking-[0.16em] text-[#173e70]">遇见</span>
-          <span className="hidden border-l border-[#c8b998] pl-4 text-[11px] leading-5 tracking-[0.08em] text-[#65758a] sm:block">
-            在真实的生活里<br />遇见有趣的灵魂
-          </span>
-        </Link>
-
-        <nav className="ml-auto hidden h-[74px] items-stretch lg:flex" aria-label="主要导航">
-          {productNav.map(([label, href]) => (
-            <Link
-              key={label}
-              href={href}
-              className={`flex items-center border-b-2 px-6 font-display text-[15px] font-semibold tracking-[0.08em] transition-colors ${
-                href === '/profile'
-                  ? 'border-[#1769d7] text-[#1258bd]'
-                  : 'border-transparent text-[#173e70] hover:border-[#b7c8df] hover:text-[#1258bd]'
-              }`}
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
-
-        {/* 与 components/Nav.tsx 相同的右栏占位槽宽度，保证切页时导航不漂移 */}
-        <div className="flex shrink-0 items-center justify-end gap-4 xl:w-[340px]">
-          <label className="hidden w-[250px] items-center gap-2 rounded-full border border-[#9dadc2]/35 bg-white/55 px-4 py-2 text-[#77859a] xl:flex">
-            <MagnifyingGlassIcon size={18} aria-hidden />
-            <input
-              value={query}
-              onChange={(event) => onQueryChange(event.target.value)}
-              className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[#8f99a7]"
-              placeholder="搜索人、话题或内容…"
-              aria-label="搜索代表内容"
-            />
-          </label>
-
-          <Link href="/me" className="flex shrink-0 items-center gap-2 text-[#173e70]" aria-label="打开我的页面">
-            <span className="grid h-9 w-9 place-items-center rounded-full border border-[#c8b998]/70 bg-[#e6dcc9] font-display text-sm">遇</span>
-            <CaretDownIcon size={14} aria-hidden />
-          </Link>
-        </div>
-      </div>
-      <nav className="mx-auto flex max-w-[1280px] overflow-x-auto border-t border-[#b7a98e]/15 px-3 lg:hidden" aria-label="移动端主要导航">
-        {productNav.map(([label, href]) => (
-          <Link
-            key={label}
-            href={href}
-            className={`shrink-0 border-b-2 px-4 py-2.5 font-display text-sm ${
-              href === '/profile' ? 'border-[#1769d7] text-[#1258bd]' : 'border-transparent text-[#536a84]'
-            }`}
-          >
-            {label}
-          </Link>
-        ))}
-      </nav>
-    </header>
-  );
-}
-
 export default function ProfileExperience({ artifact, avatarSrc }: { artifact: Artifact; avatarSrc?: string | null }) {
-  const [query, setQuery] = useState('');
   const [selection, setSelection] = useState<EvidenceSelection>(null);
   const [connectorPaths, setConnectorPaths] = useState<ConnectorPath[]>([]);
   const [canvasScale, setCanvasScale] = useState(1);
@@ -191,8 +114,6 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
   const decisionsRef = useRef<HTMLElement>(null);
   const valuesRef = useRef<HTMLElement>(null);
   const worksRef = useRef<HTMLElement>(null);
-  const featuredRef = useRef<HTMLElement>(null);
-  const connectRef = useRef<HTMLElement>(null);
   const profile = artifact.profile;
   const period = range(artifact.meta.time_range?.from, artifact.meta.time_range?.to);
   // The map is a bounded visual summary rather than an unrestricted document flow.
@@ -203,7 +124,7 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
   const mapSummary = profile.summary.one_sentence;
   const mapClaim = profile.summary.core_insights[0]?.claim || profile.summary.one_sentence;
   const evidenceById = useMemo(() => new Map(artifact.evidence_index.map((item) => [item.id, item])), [artifact.evidence_index]);
-  const works = profile.representative_contents.filter((work) => `${work.title} ${work.why_representative}`.toLowerCase().includes(query.toLowerCase()));
+  const works = profile.representative_contents;
   useLayoutEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
@@ -263,9 +184,7 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
     const decisions = decisionsRef.current;
     const values = valuesRef.current;
     const worksSection = worksRef.current;
-    const featured = featuredRef.current;
-    const connect = connectRef.current;
-    if (!canvas || !intro || !center || !conversation || !concerns || !decisions || !values || !worksSection || !featured || !connect) return;
+    if (!canvas || !intro || !center || !conversation || !concerns || !decisions || !values || !worksSection) return;
 
     const updateLayout = () => {
       if (window.innerWidth <= 1050) {
@@ -288,18 +207,17 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
       const decisionsTop = Math.max(BASE_LAYOUT.decisionsTop, Math.ceil(275 + visualHeight(concerns) + 48));
       const valuesTop = Math.max(BASE_LAYOUT.valuesTop, Math.ceil(decisionsTop + visualHeight(decisions) + 54));
       const worksTop = Math.max(BASE_LAYOUT.worksTop, Math.ceil(conversationTop + visualHeight(conversation) + 58), Math.ceil(centerBottom + 62));
-      const bottomTop = Math.max(BASE_LAYOUT.bottomTop, Math.ceil(worksTop + visualHeight(worksSection) + 58), Math.ceil(valuesTop + visualHeight(values) + 62));
-      const canvasHeight = Math.max(BASE_LAYOUT.canvasHeight, Math.ceil(bottomTop + Math.max(visualHeight(featured), visualHeight(connect)) + 34));
-      const next = { conversationTop, decisionsTop, valuesTop, worksTop, bottomTop, canvasHeight };
+      const canvasHeight = Math.max(BASE_LAYOUT.canvasHeight, Math.ceil(Math.max(worksTop + visualHeight(worksSection), valuesTop + visualHeight(values)) + 46));
+      const next = { conversationTop, decisionsTop, valuesTop, worksTop, canvasHeight };
       setMapLayout((current) => Object.keys(next).every((key) => Math.abs(current[key as keyof MapLayout] - next[key as keyof MapLayout]) < 1) ? current : next);
     };
 
     updateLayout();
     const observer = new ResizeObserver(updateLayout);
-    [intro, center, conversation, concerns, decisions, values, worksSection, featured, connect].forEach((element) => observer.observe(element));
+    [intro, center, conversation, concerns, decisions, values, worksSection].forEach((element) => observer.observe(element));
     window.addEventListener('resize', updateLayout);
     return () => { observer.disconnect(); window.removeEventListener('resize', updateLayout); };
-  }, [canvasScale, profile, query]);
+  }, [canvasScale, profile]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -309,7 +227,8 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
     const concerns = concernsRef.current;
     const decisions = decisionsRef.current;
     const values = valuesRef.current;
-    if (!canvas || !center || !timeline || !conversation || !concerns || !decisions || !values) return;
+    const works = worksRef.current;
+    if (!canvas || !center || !timeline || !conversation || !concerns || !decisions || !values || !works) return;
 
     const updatePaths = () => {
       if (window.innerWidth <= 1050) { setConnectorPaths([]); return; }
@@ -322,11 +241,13 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
         const badge = section.querySelector<HTMLElement>('.reference-dimension-title > b');
         return toCanvas((badge || section).getBoundingClientRect(), .5, .5);
       };
-      const timelineEnd = badgePoint(timeline);
+      const timelineBadge = timeline.querySelector<HTMLElement>('.reference-dimension-title > b');
+      const timelineEnd = toCanvas((timelineBadge || timeline).getBoundingClientRect(), .5, 1);
       const conversationEnd = badgePoint(conversation);
       const concernsEnd = badgePoint(concerns);
       const decisionsEnd = badgePoint(decisions);
       const valuesEnd = badgePoint(values);
+      const worksEnd = badgePoint(works);
       const evidenceWeight = (counts: number[]) => Math.min(.62, .28 + counts.reduce((total, count) => total + count, 0) / 70);
       const timelineNodes = Array.from(timeline.querySelectorAll<HTMLElement>('.reference-timeline-item i')).map((node) => toCanvas(node.getBoundingClientRect(), .5, .5));
 
@@ -364,14 +285,16 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
         [concernsEnd, -30],
         [decisionsEnd, 26],
         [valuesEnd, 40],
+        [worksEnd, -76],
       ];
-      const branchIds = ['trajectory', 'conversation', 'concerns', 'decisions', 'values'] as const;
+      const branchIds = ['trajectory', 'conversation', 'concerns', 'decisions', 'values', 'works'] as const;
       const branchEvidence = [
         profile.life_trajectory.map((item) => item.evidence_ids?.length || 0),
         profile.conversation_style.traits.map((item) => item.evidence_ids?.length || 0),
         profile.long_term_concerns.map((item) => item.evidence_ids?.length || 0),
         profile.decision_patterns.map((item) => item.evidence_ids?.length || 0),
         profile.value_preferences.map((item) => item.evidence_ids?.length || 0),
+        profile.representative_contents.map(() => 1),
       ];
 
       setConnectorPaths([
@@ -380,23 +303,23 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
           return { id: branchIds[i], kind: 'branch' as const, start, end: target, d, opacity: evidenceWeight(branchEvidence[i]) };
         }),
         /*
-         * 时间轴长线：badge → 各节点用一条 Catmull-Rom 曲线一次串完。
-         * 之前拆成 lead + journey 两条，在首节点处硬接，延伸很生硬；
-         * 合并成一条后就是藤蔓沿时间轴自然爬过的形态。
+         * 时间轴长线：从标题徽标下沿直接串过每个亮点。
+         * 每一段都用不越界的横向 S 曲线，既保留水墨藤蔓的起伏，也不会
+         * 因样条过冲而回头或压到下方年份与说明文字。
          */
-        ...(timelineNodes.length ? [{ id: 'timeline-journey', kind: 'timeline' as const, start: timelineEnd, end: timelineNodes[timelineNodes.length - 1], d: windingPath([timelineEnd, ...timelineNodes]), opacity: .84 }] : []),
+        ...(timelineNodes.length ? [{ id: 'timeline-journey', kind: 'timeline' as const, start: timelineEnd, end: timelineNodes[timelineNodes.length - 1], d: timelinePath([timelineEnd, ...timelineNodes]), opacity: .84 }] : []),
       ]);
     };
     updatePaths();
     const observer = new ResizeObserver(updatePaths);
-    [canvas, center, timeline, conversation, concerns, decisions, values].forEach((element) => observer.observe(element));
+    [canvas, center, timeline, conversation, concerns, decisions, values, works].forEach((element) => observer.observe(element));
     window.addEventListener('resize', updatePaths);
     return () => { observer.disconnect(); window.removeEventListener('resize', updatePaths); };
   }, [canvasScale, mapLayout, profile]);
 
   return (
     <main className="reference-profile-page" id="overview">
-      <ProfileHeader query={query} onQueryChange={setQuery} />
+      <Nav tone="blue" tagline="在真实的生活里遇见有趣的灵魂" />
 
       <div
         ref={stageRef}
@@ -408,7 +331,6 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
           '--decisions-top': `${mapLayout.decisionsTop}px`,
           '--values-top': `${mapLayout.valuesTop}px`,
           '--works-top': `${mapLayout.worksTop}px`,
-          '--bottom-top': `${mapLayout.bottomTop}px`,
           // 缩放未落定前先不可见，避免"先撑满再缩回"的抽动被看见
           ...(scaleReady ? {} : { visibility: 'hidden' as const }),
         } as React.CSSProperties}>
@@ -437,14 +359,7 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
           ))}
         </svg>
         <section ref={introRef} className="reference-intro mo-rise">
-          {/*
-            字号收敛（内联覆盖 globals.css 里写死的 4.25rem/.7rem）：
-            原标题 68px 与副标 .7rem 相差约 6 倍、与正文相差 4.3 倍，一头沉。
-            收到 2.75rem，并把副标升到 .82rem，层级比从 ~6:1 收到 ~3.4:1，
-            仍是清晰的主次，但不再"压"住整张地图。
-            之所以用内联而不是改 globals.css —— 那个文件在 AGENTS.md 里是冻结的。
-          */}
-          <h1 style={{ fontSize: '2.75rem', letterSpacing: '0.1em', lineHeight: 1.08 }}>一个人</h1>
+          <h1>一个人</h1>
           <p style={{ fontSize: '1.05rem', margin: '14px 0 12px' }}>由公开内容与长期表达生成的人物理解</p>
           <div style={{ fontSize: '.82rem', gap: '18px' }}><span><StackIcon size={16} /> 信息来源&nbsp; {artifact.meta.content_count}</span><span><ClockIcon size={16} /> 覆盖时间&nbsp; {period}</span></div>
           <EvidenceButton title="核心人物理解" description={profile.summary.core_insights[0]?.explanation || profile.summary.one_sentence} evidenceIds={profile.summary.core_insights[0]?.evidence_ids} onOpen={setSelection} className="reference-quote">
@@ -457,7 +372,11 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
           <div className="reference-timeline-rail">
             {visibleTrajectory.map((item, index) => (
               <EvidenceButton key={item.period} title={item.period} description={`${item.event} ${item.change}`} evidenceIds={item.evidence_ids} onOpen={setSelection} className={`reference-timeline-item item-${index}`}>
-                <i className={`mo-node-pulse ${index === visibleTrajectory.length - 1 ? 'is-current' : ''}`} />
+                <i
+                  aria-hidden="true"
+                  className={`mo-node-pulse ${index === visibleTrajectory.length - 1 ? 'is-current' : ''}`}
+                  style={{ '--timeline-index': index } as React.CSSProperties}
+                />
                 <b>{item.period}</b><span>{short(item.event, 28)}</span>
               </EvidenceButton>
             ))}
@@ -495,16 +414,7 @@ export default function ProfileExperience({ artifact, avatarSrc }: { artifact: A
 
         <section ref={worksRef} id="works" className="reference-works mo-rise" style={{ animationDelay: '1350ms' }}>
           <div className="reference-section-cap"><DimensionTitle no="6" title="代表内容" note="代表内容精选" /><span>依据 {profile.representative_contents.length}</span></div>
-          <div className="reference-work-row">{works.slice(0, 4).map((work) => <EvidenceButton key={work.content_id} title={work.title} description={work.why_representative} evidenceIds={[work.content_id]} onOpen={setSelection}><small>{work.content_type} · {work.date}</small><b>{work.title === '(无标题)' ? '一则代表回答' : short(work.title, 18)}</b><p>{short(evidenceById.get(work.content_id)?.excerpt || work.why_representative, 54)}</p><span>查看依据 <ArrowSquareOutIcon size={12} /></span></EvidenceButton>)}</div>
-        </section>
-
-        <section ref={featuredRef} className="reference-featured mo-rise" style={{ animationDelay: '1420ms' }}>
-          <b>代表内容精选</b><small>来自公开内容的精选片段</small>
-          <div>{works.slice(0, 4).map((work) => <EvidenceButton key={work.content_id} title={work.title} description={work.why_representative} evidenceIds={[work.content_id]} onOpen={setSelection}><small>{work.content_type} · {work.date}</small><strong>{work.title === '(无标题)' ? '一则代表回答' : short(work.title, 20)}</strong><p>{short(work.why_representative, 55)}</p></EvidenceButton>)}</div>
-        </section>
-
-        <section ref={connectRef} id="connect" className="reference-connect mo-rise" style={{ animationDelay: '1490ms' }}>
-          <b>适合如何认识 TA</b>{profile.conversation_style.good_entry_points.map((entry, index) => <EvidenceButton key={entry} title="认识建议" description={entry} evidenceIds={profile.conversation_style.traits[index]?.evidence_ids} onOpen={setSelection}><span>0{index + 1}</span>{short(entry, 32)}</EvidenceButton>)}
+          <div className="reference-work-row" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>{works.slice(0, 3).map((work) => <EvidenceButton key={work.content_id} title={work.title} description={work.why_representative} evidenceIds={[work.content_id]} onOpen={setSelection}><small>{work.content_type} · {work.date}</small><b>{work.title === '(无标题)' ? '一则代表回答' : short(work.title, 22)}</b><p>{short(evidenceById.get(work.content_id)?.excerpt || work.why_representative, 66)}</p><span>查看依据 <ArrowSquareOutIcon size={12} /></span></EvidenceButton>)}</div>
         </section>
       </section>
       </div>

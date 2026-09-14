@@ -1,6 +1,6 @@
 import path from 'node:path';
-import { listArtifacts, listCrawlerInputs, readArtifactFile, resolveLocalAvatar } from '@/lib/profile/store';
-import { getProfileArtifact, listProfileArtifacts } from '@/lib/profile/repository';
+import { resolveLocalAvatar } from '@/lib/profile/store';
+import { getLatestProfileArtifactForUser } from '@/lib/profile/repository';
 import { getRealSessionUserId, hasDemoSession } from '@/lib/experience-mode/session';
 import { resolveProfileEmptyState } from '@/lib/experience-mode/empty-state';
 import ProfileExperience from './profile-experience';
@@ -10,20 +10,16 @@ import ProfileExperience from './profile-experience';
  * - 真实路由绝不展示演示数据：开发用「切换/生成」面板已移至 /demo/profile。
  * - 空状态产品化：未登录/无产物时给出产品化引导，不显示白屏或开发口吻文案。
  */
-export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ name?: string }> }) {
-  const { name } = await searchParams;
+export default async function ProfilePage() {
   const uid = await getRealSessionUserId();
   const demoSession = uid ? false : await hasDemoSession();
-  const root = process.cwd();
-  const outDir = path.join(root, 'profile-output');
-  let databaseArtifacts = [] as Awaited<ReturnType<typeof listProfileArtifacts>>;
-  try { databaseArtifacts = await listProfileArtifacts(); } catch { /* bootstrap 前保留本地画像预览 */ }
-  const localArtifacts = listArtifacts(outDir);
-  const artifacts = [...databaseArtifacts, ...localArtifacts.filter((local) => !databaseArtifacts.some((stored) => stored.slug === local.slug))];
-  const selectedSlug = name && artifacts.some((a) => a.slug === name) ? name : artifacts[0]?.slug;
-  let artifact = selectedSlug ? await getProfileArtifact(selectedSlug).catch(() => null) : null;
-  if (!artifact && selectedSlug) artifact = readArtifactFile(outDir, selectedSlug);
-  const avatarSrc = selectedSlug ? resolveLocalAvatar(path.join(root, 'public'), selectedSlug) : null;
+
+  // 真实路径只按当前真实会话的 userId 读取产物。这里绝不能回退到本地文件或
+  // 任意 slug，否则访客/另一个真实用户会看到不属于自己的画像。
+  const artifact = uid ? await getLatestProfileArtifactForUser(uid).catch(() => null) : null;
+  const avatarSrc = artifact?.subject?.name
+    ? resolveLocalAvatar(path.join(process.cwd(), 'public'), artifact.subject.name)
+    : null;
 
   if (artifact) return <ProfileExperience artifact={artifact} avatarSrc={avatarSrc} />;
 

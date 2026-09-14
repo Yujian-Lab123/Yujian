@@ -1,6 +1,6 @@
 import path from 'node:path';
 import Link from 'next/link';
-import { listArtifacts, listCrawlerInputs, readArtifactFile, resolveLocalAvatar } from '@/lib/profile/store';
+import { listArtifacts, listCrawlerInputs, readArtifactFile } from '@/lib/profile/store';
 import { getProfileArtifact, getLatestProfileArtifactForUser, listProfileArtifacts } from '@/lib/profile/repository';
 import { getDemoSessionUserId } from '@/lib/experience-mode/session';
 import ProfileExperience from '@/app/profile/profile-experience';
@@ -38,12 +38,12 @@ export default async function DemoProfilePage() {
   }
   const artifacts = [...databaseArtifacts, ...listArtifacts(outDir).filter((local) => !databaseArtifacts.some((stored) => stored.slug === local.slug))];
   const inputs = listCrawlerInputs(path.join(root, 'data', 'crawler'));
-  const avatarSrc = artifact?.subject?.name ? resolveLocalAvatar(path.join(root, 'public'), artifact.subject.name) : null;
-
   return (
     <>
       {artifact ? (
-        <ProfileExperience artifact={artifact} avatarSrc={avatarSrc} />
+        // 演示画像使用统一的水墨人物占位；不从本地研究素材中任取一张头像，
+        // 避免让体验者误以为这是一位真实、可识别的用户。
+        <ProfileExperience artifact={artifact} />
       ) : (
         <main className="flex min-h-screen items-center justify-center bg-[#f7f4ee] text-[#536a84]">
           <div className="text-center">

@@ -142,14 +142,20 @@
   }
 }
 
-/* 时间轴节点：当前点的呼吸圈 */
+/* 时间轴节点：错峰呼吸，形成亮点沿时间顺序交替闪烁的节奏 */
 @keyframes moNodePulse {
   0%,
+  34%,
   100% {
-    box-shadow: 0 0 0 0 rgba(49, 93, 141, 0.45);
+    opacity: 0.58;
+    transform: scale(0.9);
+    box-shadow: 0 0 0 1px rgba(49, 93, 141, 0.18), 0 0 0 0 rgba(49, 93, 141, 0.28);
   }
-  50% {
-    box-shadow: 0 0 0 7px rgba(49, 93, 141, 0);
+  48%,
+  64% {
+    opacity: 1;
+    transform: scale(1.18);
+    box-shadow: 0 0 0 1px rgba(49, 93, 141, 0.5), 0 0 0 7px rgba(49, 93, 141, 0);
   }
 }
 
@@ -247,24 +253,50 @@
   animation: moFlow var(--flow-dur, 3.2s) linear infinite;
 }
 
-/* 时间轴当前节点呼吸 */
+/* 时间轴亮点依次呼吸；鼠标或键盘落在节点卡片时保持常亮。 */
 .mo-node-pulse {
-  animation: moNodePulse 2.6s var(--ease-soft) infinite;
+  transform-origin: center;
+  animation: moNodePulse 3.8s var(--ease-soft) infinite;
+  animation-delay: calc(var(--timeline-index, 0) * -0.72s);
+  transition: opacity var(--dur-fast) var(--ease-soft), transform var(--dur-fast) var(--ease-spring), box-shadow var(--dur-fast) var(--ease-soft);
+}
+
+.reference-timeline-item:hover .mo-node-pulse,
+.reference-timeline-item:focus-visible .mo-node-pulse {
+  animation: none;
+  opacity: 1;
+  transform: scale(1.28);
+  box-shadow: 0 0 0 2px rgba(248, 243, 233, 0.95), 0 0 0 6px rgba(49, 93, 141, 0.2), 0 0 16px rgba(49, 93, 141, 0.5);
 }
 
 /* --------------------- 画像页：布局舒展（覆盖 globals 定值） --------------------- */
 
 /*
- * 时间线：原版五个节点 left 18/37/56/75/91%，间隔不匀、末两个挤在一起。
- * 改为 3/25/47/69/87.5% 均分，波浪幅度略收，区域加高，延伸更自然。
+ * 时间线：首节点必须在标题右侧，曲线才能自然向前延伸而不是回头。
+ * 文字统一放在亮点下方至少 30px，保证曲线起伏不会穿过年份和说明。
  */
 .reference-timeline { height: 246px; }
 .reference-timeline-rail { top: 94px; height: 128px; }
-.reference-timeline-item.item-0 { left: 3%; top: -50px; }
-.reference-timeline-item.item-1 { left: 25%; top: -14px; }
-.reference-timeline-item.item-2 { left: 47%; top: -58px; }
-.reference-timeline-item.item-3 { left: 69%; top: -22px; }
-.reference-timeline-item.item-4 { left: 87.5%; top: -62px; width: 88px; }
+.reference-timeline-item { padding-top: 78px; }
+.reference-timeline-item.item-0 { left: 14%; top: -32px; }
+.reference-timeline-item.item-1 { left: 33%; top: -12px; }
+.reference-timeline-item.item-2 { left: 52%; top: -38px; }
+.reference-timeline-item.item-3 { left: 71%; top: -16px; }
+.reference-timeline-item.item-4 { left: 89%; top: -42px; width: 82px; }
+
+/* 右侧三组内容承担核心解释，桌面端适度放大，避免变成只能远观的装饰文字。 */
+@media (min-width: 1051px) {
+  .reference-driver-core .reference-evidence { font-size: .77rem; line-height: 1.5; }
+  .reference-concern-tags { left: 278px; width: 150px; }
+  .reference-concern-tags .reference-evidence { font-size: .71rem; line-height: 1.35; }
+  .reference-decision-flow .reference-evidence b { font-size: .72rem; line-height: 1.35; }
+  .reference-decision-flow .reference-evidence small { font-size: .63rem; line-height: 1.4; }
+  .reference-values > div:last-child .reference-evidence {
+    grid-template-columns: 92px 1fr 92px;
+    font-size: .71rem;
+    line-height: 1.4;
+  }
+}
 
 /* 区块序号徽标：hover 轻浮 */
 .reference-dimension-title > b {

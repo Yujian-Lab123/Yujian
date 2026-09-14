@@ -38,6 +38,8 @@ export default function DemoEncounterPage() {
       error={loadError || me.error || ''}
       profileReady={Boolean(me.understanding)}
       currentState={me.currentState}
+      started={true}
+      onStart={() => void load()}
       onRetry={() => void load()}
     />
   );

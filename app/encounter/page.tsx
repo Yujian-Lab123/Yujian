@@ -11,6 +11,7 @@ export default function EncounterPage() {
   const me = useMe();
   const [cards, setCards] = useState<EncounterCard[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [started, setStarted] = useState(false);
   const [loadError, setLoadError] = useState('');
 
   const load = useCallback(async () => {
@@ -31,16 +32,22 @@ export default function EncounterPage() {
     }
   }, [router]);
 
-  useEffect(() => { void load(); }, [load]);
+  const start = useCallback(() => {
+    if (started) return;
+    setStarted(true);
+    void load();
+  }, [load, started]);
 
   return (
     <EncounterHub
       mode="real"
       cards={cards}
-      loading={!loaded || me.loading}
+      loading={me.loading || (started && !loaded)}
       error={loadError || me.error || ''}
       profileReady={Boolean(me.understanding)}
       currentState={me.currentState}
+      started={started}
+      onStart={start}
       onRetry={() => void load()}
     />
   );

@@ -23,6 +23,9 @@ export type EncounterCard = {
   shared?: string[];
   moment?: boolean;
   anchor?: { id?: string; title?: string; topics?: string[]; excerpt?: string };
+  target?: { quote?: string; role?: string; tags?: string[] };
+  difference?: { label?: string; note?: string } | null;
+  question?: string;
 };
 
 type EncounterHubProps = {
@@ -32,6 +35,8 @@ type EncounterHubProps = {
   error: string;
   profileReady: boolean;
   currentState: CurrentState;
+  started: boolean;
+  onStart: () => void;
   onRetry: () => void;
 };
 
@@ -61,20 +66,18 @@ export default function EncounterHub({
   error,
   profileReady,
   currentState,
+  started,
+  onStart,
   onRetry,
 }: EncounterHubProps) {
   const isDemo = mode === 'demo';
   const currentUpdated = isTodayInShanghai(currentState?.created_at);
-  const hasRecommendations = cards.length > 0;
+  const hasRecommendations = started && cards.length > 0;
   const profileHref = routeFor(mode, '/profile');
   const momentHref = routeFor(mode, '/me');
   const sideHref = routeFor(mode, '/side');
-  const primaryHref = !profileReady
-    ? profileHref
-    : hasRecommendations
-      ? '#encounter-recommendations'
-      : momentHref;
-  const primaryLabel = !profileReady ? '先完成长期画像' : hasRecommendations ? '查看今日相遇' : '更新此刻，等待相遇';
+  const primaryHref = !profileReady ? profileHref : hasRecommendations ? '#encounter-recommendations' : undefined;
+  const primaryLabel = !profileReady ? '先完成长期画像' : hasRecommendations ? '查看今日相遇' : '查看今日相遇';
 
   const readinessRows = [
     {
@@ -112,10 +115,16 @@ export default function EncounterHub({
     },
   ];
 
-  const directionCards = cards.slice(0, 3);
   const whyToday = currentUpdated
     ? `你今天的「${currentState?.mood || '此刻'}」会与长期表达共同成为方向线索。系统只参考结构化特征，不展示你的状态原文。`
     : '长期表达让相遇有基础。补充今天的状态或一个侧面，会让这一次的推荐更贴近真实的你。';
+  const featuredCard = cards[0];
+  const otherDirections = cards.slice(1, 3);
+
+  const startEncounter = () => {
+    if (!profileReady) return;
+    onStart();
+  };
 
   return (
     <main className="min-h-[100dvh] overflow-x-hidden bg-paper-100 paper-texture text-sumi-800">
@@ -135,10 +144,16 @@ export default function EncounterHub({
           <p className="mt-3 text-[11px] tracking-[0.27em] text-[#7c725f]">今日相遇已准备</p>
           <h1 className="mt-1.5 font-display text-[38px] font-semibold leading-tight tracking-[0.075em] text-[#0d3765] sm:text-[48px]">今天，和谁聊一句？</h1>
           <p className="mt-2.5 max-w-2xl text-sm leading-6 text-[#52677c] sm:text-[15px]">长期表达是基础；此刻与主动选择的侧面，决定这次相遇会参考什么。</p>
-          <a href={primaryHref} className="mt-4 inline-flex min-h-11 items-center gap-3 rounded-full bg-[#16466f] px-7 text-sm font-medium text-white shadow-[0_10px_20px_rgba(17,58,94,0.22)] transition hover:bg-[#0e385e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#1769d7]">
-            {primaryLabel}<ArrowRight size={17} weight="bold" />
-          </a>
-          <p className="mt-3 text-xs text-[#647487]">今天只先为你准备相遇方向，读完内容后再决定要不要认识 TA。</p>
+          {primaryHref ? (
+            <a href={primaryHref} className="mt-4 inline-flex min-h-11 items-center gap-3 rounded-full bg-[#16466f] px-7 text-sm font-medium text-white shadow-[0_10px_20px_rgba(17,58,94,0.22)] transition hover:bg-[#0e385e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#1769d7]">
+              {primaryLabel}<ArrowRight size={17} weight="bold" />
+            </a>
+          ) : (
+            <button type="button" onClick={startEncounter} className="mt-4 inline-flex min-h-11 items-center gap-3 rounded-full bg-[#16466f] px-7 text-sm font-medium text-white shadow-[0_10px_20px_rgba(17,58,94,0.22)] transition hover:bg-[#0e385e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#1769d7]">
+              {primaryLabel}<ArrowRight size={17} weight="bold" />
+            </button>
+          )}
+          <p className="mt-3 text-xs text-[#647487]">{isDemo ? '演示中已为你准备完整相遇流程；真实使用时会在你主动开始后再读取候选。' : '先确认这次想如何被看见；只有你主动开始后，系统才会整理真实候选。'}</p>
         </div>
       </section>
 
@@ -208,7 +223,15 @@ export default function EncounterHub({
               </div>
             )}
 
-            {!loading && !error && profileReady && !hasRecommendations && (
+            {!loading && !error && profileReady && !started && (
+              <div className="py-9 text-center">
+                <p className="font-display text-xl text-[#173e70]">准备好以后，再开始今天的相遇</p>
+                <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-[#68788d]">系统不会在你打开页面时自动展示任何人；确认准备后，才会从允许公开的长期画像中整理候选。</p>
+                <button type="button" onClick={startEncounter} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#16466f] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#0e385e]">开始整理今日相遇 <ArrowRight size={16} weight="bold" /></button>
+              </div>
+            )}
+
+            {!loading && !error && profileReady && started && !hasRecommendations && (
               <div className="py-8 text-center">
                 <p className="font-display text-xl text-[#173e70]">今天还没有新的相遇方向</p>
                 <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-[#68788d]">更新一下此刻，或选择一个想被看见的侧面；出现合适的人时，会从一篇真实内容开始认识 TA。</p>
@@ -219,23 +242,53 @@ export default function EncounterHub({
               </div>
             )}
 
-            {!loading && !error && profileReady && hasRecommendations && (
-              <div className="mt-4 grid gap-3 md:grid-cols-3">
-                {directionCards.map((card, index) => {
-                  const label = card.shared?.[0] || card.anchor?.topics?.[0] || '值得停下来读的问题';
-                  const title = card.anchor?.title || '一篇值得读的内容';
-                  return (
-                    <Link key={card.id} href={`${routeFor(mode, '/encounter')}/${encodeURIComponent(card.id)}`} className="group relative min-h-36 overflow-hidden rounded-xl border border-[#e5ddcf] bg-[#faf7f0] p-4 transition hover:-translate-y-0.5 hover:border-[#8eb1d0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1769d7]">
-                      <div className="absolute inset-0 opacity-65"><InkCover seed={card.anchor?.id || card.id} /></div>
-                      <div className="relative flex h-full min-h-28 flex-col">
-                        <p className="text-[11px] font-medium tracking-[0.1em] text-[#9a7338]">相遇方向 {index + 1}</p>
-                        <h3 className="mt-2 font-display text-lg font-semibold leading-6 text-[#143d6c]">{label}</h3>
-                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#587086]">从《{title}》开始读起</p>
-                        <span className="mt-auto ml-auto grid h-8 w-8 place-items-center rounded-full bg-[#16466f] text-white shadow transition group-hover:translate-x-0.5"><ArrowRight size={16} weight="bold" /></span>
-                      </div>
-                    </Link>
-                  );
-                })}
+            {!loading && !error && profileReady && hasRecommendations && featuredCard && (
+              <div className="mt-4">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <span className="rounded-full border border-[#d9cba9] bg-[#fdf5e5] px-3 py-1 text-[11px] font-medium tracking-[0.08em] text-[#967034]">{isDemo ? '演示候选 · 预置画像' : '今日相遇候选 · 尚未发送认识意愿'}</span>
+                  <p className="text-xs text-[#718096]">先看公开画像摘要，再决定是否继续了解 TA</p>
+                </div>
+                <article className="grid overflow-hidden rounded-xl border border-[#e1d7c6] bg-[#fffdfa] md:grid-cols-[160px_minmax(0,1fr)_230px]">
+                  <div className="relative min-h-44 bg-[#edf0ee] md:min-h-full">
+                    <Image src="/images/encounter/public-portrait-preview-v1.webp" alt="公开画像缩略图" fill sizes="(max-width: 768px) 100vw, 160px" className="object-cover" />
+                    <span className="absolute bottom-3 left-3 rounded-full bg-[#fffdf9]/90 px-2.5 py-1 text-[10px] font-medium text-[#526b84]">仅为公开画像缩略图</span>
+                  </div>
+                  <div className="p-5">
+                    <span className="inline-flex rounded-full bg-[#f5ead4] px-2.5 py-1 text-[11px] font-medium text-[#9a7338]">{featuredCard.shared?.[0] || '长期共鸣'}</span>
+                    <h3 className="mt-3 font-display text-[22px] font-semibold leading-8 text-[#143d6c]">{featuredCard.target?.quote || featuredCard.target?.role || '一个值得从长期表达开始了解的人'}</h3>
+                    <p className="mt-2 text-sm leading-6 text-[#61738a]">{featuredCard.reason || '你们的长期关注与交流方式之间，出现了一条值得慢慢读下去的线索。'}</p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {(featuredCard.target?.tags?.slice(0, 3) || featuredCard.shared?.slice(0, 3) || ['长期表达']).map((tag) => (
+                        <span key={tag} className="rounded-full bg-[#f2f0ea] px-3 py-1 text-xs text-[#52708b]">{tag}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="border-t border-[#e7dfd2] bg-[#fcfaf5] p-5 md:border-l md:border-t-0">
+                    <dl className="space-y-3 text-sm">
+                      <div className="border-b border-[#e6ded2] pb-3"><dt className="font-medium text-[#204d78]">反复思考</dt><dd className="mt-1 text-xs leading-5 text-[#66788c]">{featuredCard.shared?.[0] || '从公开表达中继续了解'}</dd></div>
+                      <div className="border-b border-[#e6ded2] pb-3"><dt className="font-medium text-[#204d78]">重视什么</dt><dd className="mt-1 text-xs leading-5 text-[#66788c]">{featuredCard.difference?.label || featuredCard.shared?.[1] || '真实的表达与持续的成长'}</dd></div>
+                      <div><dt className="font-medium text-[#204d78]">交流方式</dt><dd className="mt-1 text-xs leading-5 text-[#66788c]">{featuredCard.question || '从一篇代表内容开始，慢慢聊开。'}</dd></div>
+                    </dl>
+                    <Link href={`${routeFor(mode, '/encounter')}/${encodeURIComponent(featuredCard.id)}`} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#16466f] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#0e385e]">查看公开画像 <ArrowRight size={16} weight="bold" /></Link>
+                    <Link href={`${routeFor(mode, '/encounter')}/${encodeURIComponent(featuredCard.id)}`} className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-[#1c5d9d] hover:underline">从代表内容继续了解 <ArrowRight size={13} /></Link>
+                  </div>
+                </article>
+                <p className="mt-3 flex items-center gap-2 text-xs leading-5 text-[#6e7e90]"><Info size={16} className="shrink-0 text-[#547493]" aria-hidden />仅展示 TA 主动公开的画像摘要；证据原文、此刻记录与完整身份不会在初见时展示。</p>
+                {otherDirections.length > 0 && (
+                  <div className="mt-4 flex flex-col gap-2 border-t border-[#ece4d8] pt-4 sm:flex-row sm:items-center">
+                    <p className="shrink-0 text-sm font-medium text-[#234c78]">还有 {otherDirections.length} 个可能的相遇方向</p>
+                    <div className="grid flex-1 gap-2 sm:grid-cols-2">
+                      {otherDirections.map((card) => (
+                        <Link key={card.id} href={`${routeFor(mode, '/encounter')}/${encodeURIComponent(card.id)}`} className="group flex min-w-0 items-center gap-3 rounded-lg border border-[#e6ded2] bg-[#fffefa] px-3 py-2.5 transition hover:border-[#9eb7ce]">
+                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#eef2f2] text-[#4d6a85]"><Leaf size={16} /></span>
+                          <span className="min-w-0 flex-1 truncate text-xs text-[#5b7087]">{card.shared?.[0] || card.anchor?.title || '从另一种视角开始了解'}</span>
+                          <ArrowRight size={15} className="shrink-0 text-[#245b91] transition group-hover:translate-x-0.5" />
+                        </Link>
+                      ))}
+                    </div>
+                    <button type="button" onClick={onRetry} className="shrink-0 text-xs font-medium text-[#1c5d9d] hover:underline">换一批</button>
+                  </div>
+                )}
               </div>
             )}
           </section>

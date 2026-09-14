@@ -44,6 +44,9 @@ const SYNTH_OPTS = {
   temperature: 0.2,
   timeoutMs: 300_000,
   thinking: false,
+  // 综合层是单次长输出（实测 3 分钟级），必须走流式：
+  // 否则被网关的非流式时长上限掐断（中转站 Cloudflare 约 100s → HTTP 524）。
+  stream: true,
 } as const;
 
 export interface AnalyzeOptions {

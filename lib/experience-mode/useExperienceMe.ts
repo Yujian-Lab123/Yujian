@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ExperienceAdapter } from './adapter';
+import { experienceFetch } from './experience-fetch';
 
 export interface ExperienceMeState {
   loading: boolean;
@@ -26,7 +27,7 @@ export function useExperienceMe(adapter: ExperienceAdapter): ExperienceMeState {
   const refresh = useCallback(async () => {
     const id = ++requestId.current;
     try {
-      const response = await fetch(`${adapter.apiBase}/me`, { cache: 'no-store' });
+      const response = await experienceFetch(adapter, '/me', { cache: 'no-store' });
       if (id !== requestId.current) return;
       if (response.status === 401) {
         setState({ loading: false, loggedIn: false, user: null, understanding: null, currentState: null });
@@ -44,7 +45,7 @@ export function useExperienceMe(adapter: ExperienceAdapter): ExperienceMeState {
       setState((previous) => ({ ...previous, loading: false }));
       throw cause;
     }
-  }, [adapter.apiBase]);
+  }, [adapter]);
   useEffect(() => { void refresh().catch(() => {}); return () => { requestId.current += 1; }; }, [refresh]);
   return { ...state, error, refresh };
 }

@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
-import { apiUrl, modeRoute, type ExperienceAdapter } from '@/lib/experience-mode/adapter';
+import { modeRoute, type ExperienceAdapter } from '@/lib/experience-mode/adapter';
+import { experienceFetch } from '@/lib/experience-mode/experience-fetch';
 import type { ExperienceMeState } from '@/lib/experience-mode/useExperienceMe';
 import { latestRecordsByDay, shanghaiDateKey, shanghaiMonthKey, shiftMonth, type MomentHistoryRecord } from '@/lib/present-self/history';
 import { EMPTY_PRESENT_SELF_DRAFT, type PresentSelfDraft } from '@/lib/present-self/record';
@@ -15,11 +16,13 @@ import styles from './present-self.module.css';
 
 const COPY = {
   real: {
+    navTagline: '在真实的生活里，遇见有趣的灵魂',
     loggedOutTitle: '记录此刻的自己',
     loggedOutText: '登录后，可以记录心情、当下想法和连接意愿。',
     loggedOutCta: '选择知乎登录或演示体验',
   },
   demo: {
+    navTagline: '演示模式 · 预置数据体验',
     loggedOutTitle: '演示会话已结束',
     loggedOutText: '重新开始一次演示体验即可继续。',
     loggedOutCta: '前往演示入口',
@@ -48,7 +51,7 @@ export default function PresentSelfScreen({ adapter, me }: { adapter: Experience
   const loadHistory = useCallback(async (monthKey: string, chooseDate = false) => {
     setHistoryLoading(true); setPageError('');
     try {
-      const response = await fetch(`${apiUrl(adapter, '/me/current-states')}?month=${encodeURIComponent(monthKey)}`, { cache: 'no-store' });
+      const response = await experienceFetch(adapter, `/me/current-states?month=${encodeURIComponent(monthKey)}`, { cache: 'no-store' });
       const result = await response.json();
       if (result.loginRequired) { router.replace(adapter.loginRoute); return; }
       if (!response.ok || !result.ok) throw new Error(result.error || '历史记录加载失败。');
@@ -74,7 +77,7 @@ export default function PresentSelfScreen({ adapter, me }: { adapter: Experience
     if (busy || saving || !me.user) return;
     setBusy(true); setPageError('');
     try {
-      const response = await fetch(apiUrl(adapter, '/me/toggle'), {
+      const response = await experienceFetch(adapter, '/me/toggle', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: me.user.encounter_enabled !== 1 }),
       });
@@ -102,7 +105,7 @@ export default function PresentSelfScreen({ adapter, me }: { adapter: Experience
   </main>;
 
   return <main className={styles.page}>
-    <Nav tone="warm" tagline={adapter.navTagline} />
+    <Nav tone="warm" tagline={copy.navTagline} />
     <div className={styles.sideVerseLeft}>每一个此刻<br />都是新的相遇</div>
     <div className={styles.sideVerseRight}>把日常过成<br />值得相遇的时刻</div>
     <div className={styles.shell}>
@@ -113,7 +116,7 @@ export default function PresentSelfScreen({ adapter, me }: { adapter: Experience
         <PresentSelfForm key={me.user.id} currentState={me.currentState}
           encounterEnabled={me.user.encounter_enabled === 1} understanding={me.understanding}
           disabled={busy} onToggle={toggleEncounter} onSaved={afterSaved}
-          onSavingChange={setSaving} onDraftChange={setDraft} apiBase={adapter.apiBase} />
+          onSavingChange={setSaving} onDraftChange={setDraft} adapter={adapter} />
         <MomentSidebar month={month} records={records} loading={historyLoading} selectedDate={selectedDate}
           draft={draft} understanding={me.understanding} isMock={isMock}
           onSelect={setSelectedDate} onMoveMonth={(amount) => setMonth((current) => shiftMonth(current, amount))} />

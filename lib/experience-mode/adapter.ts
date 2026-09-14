@@ -13,8 +13,6 @@ export interface ExperienceAdapter {
   routeBase: '' | '/demo';
   /** 会话失效/未进入时统一跳转的出口 */
   loginRoute: '/about' | '/demo';
-  /** 顶部导航标语 */
-  navTagline: string;
 }
 
 export const EXPERIENCE_ADAPTERS: Record<ExperienceMode, ExperienceAdapter> = {
@@ -23,14 +21,12 @@ export const EXPERIENCE_ADAPTERS: Record<ExperienceMode, ExperienceAdapter> = {
     apiBase: '/api',
     routeBase: '',
     loginRoute: '/about',
-    navTagline: '在真实的生活里，遇见有趣的灵魂',
   },
   demo: {
     mode: 'demo',
     apiBase: '/api/demo',
     routeBase: '/demo',
     loginRoute: '/demo',
-    navTagline: '演示模式 · 预置数据体验',
   },
 };
 

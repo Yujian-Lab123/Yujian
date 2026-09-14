@@ -45,7 +45,7 @@ function GalleryCard({ entry }: { entry: GalleryEntry }) {
               查看完整画像 →
             </Link>
           ) : (
-            <span className="text-xs text-[#a9a192]">画像生成中</span>
+            <span className="text-xs text-[#a9a192]">{entry.isMock ? '完整画像整理中' : '画像生成中'}</span>
           )}
         </div>
       </div>

@@ -23,9 +23,21 @@ export default async function GalleryPage() {
     <main className="min-h-screen bg-[#f7f4ee]">
       <section
         className="relative bg-[#e9e2d3] bg-cover bg-center"
-        style={{ backgroundImage: "url('/images/gallery/hero.png')" }}
+        style={{ backgroundImage: "url('/images/gallery/hero/gallery-river-mountains-v1.png')" }}
       >
-        <div className="mx-auto max-w-[1280px] px-6 py-16 lg:py-24">
+        <img
+          src="/images/gallery/decor/branch-left-v1.png"
+          alt=""
+          aria-hidden
+          className="pointer-events-none absolute left-0 top-0 hidden h-full w-auto select-none lg:block"
+        />
+        <img
+          src="/images/gallery/decor/branch-right-v1.png"
+          alt=""
+          aria-hidden
+          className="pointer-events-none absolute right-0 top-0 hidden h-full w-auto select-none lg:block"
+        />
+        <div className="relative mx-auto max-w-[1280px] px-6 py-16 lg:py-24">
           <p className="text-xs uppercase tracking-[0.3em] text-[#77859a]">People Gallery</p>
           <h1 className="mt-3 font-display text-4xl text-[#173e70] lg:text-5xl">画像长廊</h1>
           <p className="mt-4 max-w-xl text-sm leading-6 text-[#5c6b80]">

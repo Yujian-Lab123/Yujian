@@ -12,6 +12,10 @@ export interface EncounterScores {
   recall: number;
   coarse: number;
   rerank: number;
+  /** 方向性分：观看者 → 候选（仅 16 维概念轴时与 backward 不同）。 */
+  forward?: number;
+  /** 方向性分：候选 → 观看者（仅 16 维概念轴时与 forward 不同）。 */
+  backward?: number;
   compatibility: number;
   final: number;
 }

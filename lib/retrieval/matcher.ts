@@ -71,6 +71,8 @@ export async function buildEncounters(viewerId: string): Promise<RecCard[]> {
       recall: item.recall.max_score,
       coarse: item.coarse,
       rerank: item.rerank,
+      forward: item.forward,
+      backward: item.backward,
       compatibility: item.compatibility,
       final: item.final,
     };
@@ -127,6 +129,8 @@ export async function buildEncounters(viewerId: string): Promise<RecCard[]> {
         recall: item.recall.max_score,
         coarse: item.coarse,
         rerank: item.rerank,
+        forward: item.forward,
+        backward: item.backward,
         compatibility: item.compatibility,
         final: item.final,
       },

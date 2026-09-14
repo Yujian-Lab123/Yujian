@@ -21,7 +21,7 @@ function ranked(id: string, compatibility: number): RankedCandidate<RerankUser> 
     user: { ...user, id },
     vectors: { long_term: [1], value: [1], conversation: [1], current: null },
     lt: 1, val: 1, conv: 1, cur: 0, intent: 1, novelty: 1, diversity: 0.4,
-    coarse: 0.8, rerank: 0.8, compatibility, final: 0.8,
+    coarse: 0.8, rerank: 0.8, compatibility, forward: compatibility, backward: compatibility, final: 0.8,
     recall: { sources: ['long_term'], scores: { long_term: 1 }, max_score: 1 },
   };
 }

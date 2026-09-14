@@ -1,6 +1,7 @@
 import { AXES, cosine, topAxes } from '../axes';
 import type { UserVectors } from '../db';
 import type { CandidateUser } from './candidate-filter';
+import { directedAxisSimilarity, isConceptAxisVector } from './directional-similarity';
 import { intentCompatibilityScore } from './intent';
 import type { RecallSource, RecalledCandidate } from './multi-recall';
 
@@ -27,6 +28,10 @@ export interface RankingFeatures {
   coarse: number;
   rerank: number;
   compatibility: number;
+  /** 方向性兼容分：观看者 → 候选。 */
+  forward: number;
+  /** 方向性兼容分：候选 → 观看者。 */
+  backward: number;
   final: number;
 }
 
@@ -68,15 +73,47 @@ export function fallbackRerankScore(coarse: number, value: number): number {
   return clamp01(RERANK_WEIGHTS.coarse * coarse + RERANK_WEIGHTS.value * value);
 }
 
-/** 推荐前的画像兼容度估计，不代表任何一方已经表达认识意愿。 */
-export function compatibilityScore(left: UserVectors, right: UserVectors): number {
-  const current = left.current && right.current ? similarity(left.current, right.current) : 0;
+/**
+ * 长期/价值层：16 维非负概念轴使用方向性算法（Directed Coverage + Generalized KL），
+ * 通用高维 Embedding 自动回退余弦。方向性只体现在这一层；召回层始终使用余弦。
+ */
+function directionalOrCosine(from: number[], to: number[]): number {
+  if (isConceptAxisVector(from) && isConceptAxisVector(to)) return directedAxisSimilarity(from, to);
+  return similarity(from, to);
+}
+
+/** 单向画像兼容度：0.4 长期 + 0.3 价值 + 0.2 对话 + 0.1 此刻。 */
+function pairScore(from: UserVectors, to: UserVectors): number {
+  const current = from.current && to.current ? similarity(from.current, to.current) : 0;
   return clamp01(
-    0.4 * similarity(left.long_term, right.long_term)
-    + 0.3 * similarity(left.value, right.value)
-    + 0.2 * similarity(left.conversation, right.conversation)
+    0.4 * directionalOrCosine(from.long_term, to.long_term)
+    + 0.3 * directionalOrCosine(from.value, to.value)
+    + 0.2 * similarity(from.conversation, to.conversation)
     + 0.1 * current,
   );
+}
+
+export interface CompatibilityBreakdown {
+  /** concept-axis-directed：16 维概念轴，forward/backward 可能不同；embedding-cosine：高维回退，两者相等。 */
+  mode: 'concept-axis-directed' | 'embedding-cosine';
+  forward: number;
+  backward: number;
+  compatibility: number;
+}
+
+/** 分别计算 A→B 与 B→A 的画像兼容度，取较小者作为保守估计。 */
+export function compatibilityBreakdown(left: UserVectors, right: UserVectors): CompatibilityBreakdown {
+  const forward = pairScore(left, right);
+  const backward = pairScore(right, left);
+  const mode = isConceptAxisVector(left.long_term) && isConceptAxisVector(right.long_term)
+    ? 'concept-axis-directed'
+    : 'embedding-cosine';
+  return { mode, forward, backward, compatibility: clamp01(Math.min(forward, backward)) };
+}
+
+/** 推荐前的画像兼容度估计，不代表任何一方已经表达认识意愿。 */
+export function compatibilityScore(left: UserVectors, right: UserVectors): number {
+  return compatibilityBreakdown(left, right).compatibility;
 }
 
 export function finalScore(rerank: number, compatibility: number): number {
@@ -132,13 +169,16 @@ export function rankRecalledCandidates<TUser extends CandidateUser>(input: {
     const diversity = 0.4;
     const coarse = coarseScore({ lt, conv, cur, intent, novelty, diversity });
     const rerank = fallbackRerankScore(coarse, val);
-    const compatibility = compatibilityScore(input.viewerVectors, candidate.vectors);
+    const compatibilityDetail = compatibilityBreakdown(input.viewerVectors, candidate.vectors);
     return {
       user: candidate.user,
       vectors: candidate.vectors,
       lt, val, conv, cur, intent, novelty, diversity,
-      coarse, rerank, compatibility,
-      final: finalScore(rerank, compatibility),
+      coarse, rerank,
+      compatibility: compatibilityDetail.compatibility,
+      forward: compatibilityDetail.forward,
+      backward: compatibilityDetail.backward,
+      final: finalScore(rerank, compatibilityDetail.compatibility),
       recall: {
         sources: [...candidate.recallSources],
         scores: { ...candidate.recallScores },

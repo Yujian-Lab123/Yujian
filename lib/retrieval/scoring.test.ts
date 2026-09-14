@@ -3,7 +3,7 @@ import { AXES } from '../axes';
 import type { UserVectors } from '../db';
 import type { CandidateUser } from './candidate-filter';
 import type { RecalledCandidate } from './multi-recall';
-import { compatibilityScore, rankRecalledCandidates } from './scoring';
+import { compatibilityBreakdown, compatibilityScore, rankRecalledCandidates } from './scoring';
 
 function axisVector(index: number, value = 1): number[] {
   return AXES.map((_, current) => current === index ? value : 0);
@@ -27,6 +27,35 @@ describe('retrieval scoring', () => {
   it('names pre-recommendation model output compatibility, not mutual willingness', () => {
     const left = vectors(axisVector(0));
     const right = vectors(axisVector(0));
+    expect(compatibilityScore(left, right)).toBeCloseTo(0.9);
+  });
+
+  it('keeps identical concept vectors symmetric at the same score', () => {
+    const identical = vectors(axisVector(0));
+    const result = compatibilityBreakdown(identical, identical);
+    expect(result.mode).toBe('concept-axis-directed');
+    expect(result.forward).toBeCloseTo(result.backward);
+    expect(result.compatibility).toBeCloseTo(0.9);
+  });
+
+  it('produces directional forward/backward on concept axes', () => {
+    const strong = vectors(axisVector(0, 0.9));
+    const weak = vectors(axisVector(0, 0.09));
+    const forward = compatibilityBreakdown(strong, weak);
+    const backward = compatibilityBreakdown(weak, strong);
+    expect(forward.mode).toBe('concept-axis-directed');
+    expect(forward.forward).toBeLessThan(forward.backward);
+    expect(backward.forward).toBeGreaterThan(backward.backward);
+    expect(forward.compatibility).toBeCloseTo(Math.min(forward.forward, forward.backward));
+  });
+
+  it('falls back to symmetric cosine for non-concept-axis vectors', () => {
+    const wide = Array.from({ length: 20 }, (_, index) => (index === 0 ? 0.9 : 0));
+    const left = vectors(wide);
+    const right = vectors(wide.map((value) => value * 0.1));
+    const result = compatibilityBreakdown(left, right);
+    expect(result.mode).toBe('embedding-cosine');
+    expect(result.forward).toBeCloseTo(result.backward);
     expect(compatibilityScore(left, right)).toBeCloseTo(0.9);
   });
 

@@ -1,0 +1,1 @@
+ALTER TABLE "profile_artifacts" ADD COLUMN "shared_at" timestamp with time zone;

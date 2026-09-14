@@ -7,6 +7,7 @@ export const REAL_NAV: ReadonlyArray<readonly [string, string]> = [
   ['此刻', '/me'],
   ['侧面', '/side'],
   ['遇见', '/encounter'],
+  ['画像长廊', '/gallery'],
   ['关于遇见', '/about'],
 ];
 
@@ -15,6 +16,7 @@ export const DEMO_NAV: ReadonlyArray<readonly [string, string]> = [
   ['此刻', '/demo/me'],
   ['侧面', '/demo/side'],
   ['遇见', '/demo/encounter'],
+  ['画像长廊', '/gallery'],
   ['关于遇见', '/about'],
 ];
 

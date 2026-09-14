@@ -1,7 +1,7 @@
 import { desc, eq } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import { db } from '../db/client';
-import { profileArtifacts } from '../db/schema';
+import { profileArtifacts, users } from '../db/schema';
 import type { ProfileArtifact } from './schema';
 import type { ArtifactSummary } from './store';
 
@@ -54,4 +54,60 @@ export async function getLatestProfileArtifactForUser(userId: string): Promise<P
     .orderBy(desc(profileArtifacts.updatedAt))
     .limit(1);
   return row ? row.artifact as unknown as ProfileArtifact : null;
+}
+
+/** 画像可见性元数据：供画像广场与 /profile?name= 的权限收口使用。 */
+export interface ProfileArtifactMeta {
+  slug: string;
+  userId: string | null;
+  isMock: boolean;
+  sharedAt: Date | null;
+}
+
+export async function getProfileArtifactMeta(slug: string): Promise<ProfileArtifactMeta | null> {
+  const [row] = await db.select({
+    slug: profileArtifacts.slug,
+    userId: profileArtifacts.userId,
+    sharedAt: profileArtifacts.sharedAt,
+    isMock: users.isMock,
+  }).from(profileArtifacts)
+    .leftJoin(users, eq(profileArtifacts.userId, users.id))
+    .where(eq(profileArtifacts.slug, slug))
+    .limit(1);
+  if (!row) return null;
+  return { slug: row.slug, userId: row.userId, isMock: row.isMock ?? true, sharedAt: row.sharedAt };
+}
+
+/** 画像广场列表：仅真实用户（非 Mock）且本人自愿公开的画像。 */
+export async function listSharedProfileArtifacts(): Promise<Array<ProfileArtifactMeta & { artifact: ProfileArtifact }>> {
+  const rows = await db.select({
+    slug: profileArtifacts.slug,
+    userId: profileArtifacts.userId,
+    sharedAt: profileArtifacts.sharedAt,
+    isMock: users.isMock,
+    artifact: profileArtifacts.artifact,
+  }).from(profileArtifacts)
+    .innerJoin(users, eq(profileArtifacts.userId, users.id))
+    .where(eq(users.isMock, false))
+    .orderBy(desc(profileArtifacts.updatedAt));
+  return rows
+    .filter((row) => row.sharedAt !== null)
+    .map((row) => ({
+      slug: row.slug,
+      userId: row.userId,
+      isMock: row.isMock ?? false,
+      sharedAt: row.sharedAt,
+      artifact: row.artifact as unknown as ProfileArtifact,
+    }));
+}
+
+/** 设置/取消画像的公开分享状态（仅本人画像生效）。 */
+export async function setProfileArtifactShared(slug: string, userId: string, shared: boolean): Promise<boolean> {
+  const [row] = await db.select({ id: profileArtifacts.id }).from(profileArtifacts)
+    .where(eq(profileArtifacts.slug, slug)).limit(1);
+  if (!row) return false;
+  await db.update(profileArtifacts)
+    .set({ sharedAt: shared ? new Date() : null, updatedAt: new Date() })
+    .where(eq(profileArtifacts.id, row.id));
+  return true;
 }

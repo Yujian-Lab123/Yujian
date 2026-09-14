@@ -141,6 +141,8 @@ export const profileArtifacts = pgTable('profile_artifacts', {
   userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
   subjectName: text('subject_name').notNull(),
   artifact: jsonb('artifact').$type<Record<string, unknown>>().notNull(),
+  // 画像广场：用户自愿公开的时间。null = 私有（默认），仅在本人明确开启后进入画像长廊。
+  sharedAt: timestamp('shared_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

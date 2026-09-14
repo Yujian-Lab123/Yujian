@@ -19,9 +19,10 @@ describe('experience-mode navigation isolation', () => {
     }
   });
 
-  it('every demo nav link keeps the /demo prefix (except the shared about page)', () => {
+  it('every demo nav link keeps the /demo prefix (except shared public pages)', () => {
     for (const [, href] of DEMO_NAV) {
       if (href === '/about') continue; // 关于页是双模式共享入口
+      if (href === '/gallery') continue; // 画像长廊是公开只读页，双模式共享
       expect(href.startsWith('/demo')).toBe(true);
     }
   });

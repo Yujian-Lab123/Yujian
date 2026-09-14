@@ -1,5 +1,5 @@
-# syntax=docker/dockerfile:1
 # 遇见 · 生产镜像。web 与 profile-worker 共用同一个镜像，由启动命令区分。
+# 注意：不写 # syntax= 指令——BuildKit 用内置前端即可，避免构建机访问 auth.docker.io。
 
 FROM node:24-bookworm-slim AS deps
 WORKDIR /app

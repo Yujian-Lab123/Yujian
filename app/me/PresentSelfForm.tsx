@@ -53,7 +53,7 @@ function ChoicePills({ values, options, max, onChange }: {
   </div>;
 }
 
-export default function PresentSelfForm({ currentState, encounterEnabled, understanding, disabled, onToggle, onSaved, onSavingChange, onDraftChange }: {
+export default function PresentSelfForm({ currentState, encounterEnabled, understanding, disabled, onToggle, onSaved, onSavingChange, onDraftChange, apiBase = '/api' }: {
   currentState: { text: string; mood: string; created_at: string } | null;
   encounterEnabled: boolean;
   understanding: { coreQuestion?: string; topics?: string[] } | null;
@@ -62,6 +62,8 @@ export default function PresentSelfForm({ currentState, encounterEnabled, unders
   onSaved: () => Promise<void>;
   onSavingChange: (saving: boolean) => void;
   onDraftChange: (draft: PresentSelfDraft) => void;
+  /** 业务 API 前缀：真实模式 /api，演示模式 /api/demo（体验模式适配器）。 */
+  apiBase?: string;
 }) {
   const [draft, setDraft] = useState<PresentSelfDraft>(EMPTY_PRESENT_SELF_DRAFT);
   const [saving, setSaving] = useState(false);
@@ -93,7 +95,7 @@ export default function PresentSelfForm({ currentState, encounterEnabled, unders
     if (!hasContent || saving || disabled) return;
     setSaving(true); onSavingChange(true); setError(''); setMessage('');
     try {
-      const response = await fetch('/api/me/current-state', {
+      const response = await fetch(`${apiBase}/me/current-state`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, mood: draft.moods[0] || '' }),
       });

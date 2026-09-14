@@ -5,6 +5,8 @@ import {
   MoonIcon, MountainsIcon, SmileyIcon, SparkleIcon, SunIcon,
 } from '@phosphor-icons/react';
 import { useEffect, useState, type ComponentType, type FormEvent } from 'react';
+import type { ExperienceAdapter } from '@/lib/experience-mode/adapter';
+import { experienceFetch } from '@/lib/experience-mode/experience-fetch';
 import {
   composeRecord, EMPTY_PRESENT_SELF_DRAFT, MAX_ACTIVITY_SELECTIONS, MAX_MOOD_SELECTIONS,
   MAX_PERSON_PREFERENCE_LENGTH, MAX_THOUGHT_LENGTH, parseRecord, type PresentSelfDraft,
@@ -53,7 +55,7 @@ function ChoicePills({ values, options, max, onChange }: {
   </div>;
 }
 
-export default function PresentSelfForm({ currentState, encounterEnabled, understanding, disabled, onToggle, onSaved, onSavingChange, onDraftChange }: {
+export default function PresentSelfForm({ currentState, encounterEnabled, understanding, disabled, onToggle, onSaved, onSavingChange, onDraftChange, adapter }: {
   currentState: { text: string; mood: string; created_at: string } | null;
   encounterEnabled: boolean;
   understanding: { coreQuestion?: string; topics?: string[] } | null;
@@ -62,6 +64,8 @@ export default function PresentSelfForm({ currentState, encounterEnabled, unders
   onSaved: () => Promise<void>;
   onSavingChange: (saving: boolean) => void;
   onDraftChange: (draft: PresentSelfDraft) => void;
+  /** 体验模式适配器：决定保存接口走真实 /api 还是演示 /api/demo。 */
+  adapter: ExperienceAdapter;
 }) {
   const [draft, setDraft] = useState<PresentSelfDraft>(EMPTY_PRESENT_SELF_DRAFT);
   const [saving, setSaving] = useState(false);
@@ -93,7 +97,7 @@ export default function PresentSelfForm({ currentState, encounterEnabled, unders
     if (!hasContent || saving || disabled) return;
     setSaving(true); onSavingChange(true); setError(''); setMessage('');
     try {
-      const response = await fetch('/api/me/current-state', {
+      const response = await experienceFetch(adapter, '/me/current-state', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, mood: draft.moods[0] || '' }),
       });

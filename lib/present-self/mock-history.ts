@@ -1,3 +1,4 @@
+import { SEED_USERS } from '../db/seed';
 import { shanghaiDateKey } from './history';
 
 export interface MockCurrentStateSeed {
@@ -25,32 +26,52 @@ function atLocalDay(base: Date, offsetDays: number, hour: number, minute: number
   return new Date(`${day}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00+08:00`);
 }
 
-/** Current-month demo records only; real users are never referenced by this fixture. */
+/** 把未来的时间点收回"已过去"，且永远不允许跨出当前月（否则当月不变量被打破）。 */
+function clampToAlreadyPast(instant: Date, now: Date): Date {
+  if (instant.getTime() <= now.getTime()) return instant;
+  const shifted = new Date(now.getTime() - 30_000);
+  return shanghaiDateKey(shifted) === shanghaiDateKey(now) ? shifted : new Date(now.getTime());
+}
+
+/**
+ * 演示身份的当月「此刻」预置记录。
+ *
+ * 不变量：**每个可能被轮换到的演示身份（SEED_USERS 全员）都拥有当月完整历史**——
+ * 演示会话按 UTC 日期确定性轮换，轮到谁，谁都不能是空档案（审计发现的缺陷：
+ * 此前只为 u0 生成，轮换到其他身份时侧栏全空）。
+ */
 export function buildMockCurrentStateSeeds(now = new Date()): MockCurrentStateSeed[] {
   const shanghaiDay = Number(shanghaiDateKey(now).slice(8, 10));
   const clampOffset = (offset: number) => Math.min(offset, Math.max(0, shanghaiDay - 1));
   const offsets = [0, 1, 3, 5, 7, 9, 10, 11].map(clampOffset);
-  const records = offsets.map((offset, index) => {
-    const scenario = SCENARIOS[index];
-    let createdAt = atLocalDay(now, offset, 9 + (index % 4) * 3, 12 + index);
-    if (createdAt > now) createdAt = new Date(now.getTime() - (index + 1) * 60_000);
-    const day = shanghaiDateKey(createdAt);
-    return {
-      id: `cs-u0-demo-${day}-${index}`,
-      userId: 'u0',
-      mood: scenario.mood,
-      text: [
-        `今日心情：${scenario.mood}`,
-        `最近在想：${scenario.thought}`,
-        `今天想做：${scenario.activities}`,
-        `交流方式：${scenario.style}`,
-        `期待遇见：${scenario.person}`,
-      ].join('\n'),
-      createdAt,
-    };
+  const records: MockCurrentStateSeed[] = [];
+
+  SEED_USERS.forEach((user, userIndex) => {
+    offsets.forEach((offset, index) => {
+      const scenario = SCENARIOS[(userIndex * 3 + index) % SCENARIOS.length];
+      const createdAt = clampToAlreadyPast(
+        atLocalDay(now, offset, 9 + ((index + userIndex) % 4) * 3, 12 + ((index * 7 + userIndex * 5) % 47)),
+        now,
+      );
+      const day = shanghaiDateKey(createdAt);
+      records.push({
+        id: `cs-${user.id}-demo-${day}-${index}`,
+        userId: user.id,
+        mood: scenario.mood,
+        text: [
+          `今日心情：${scenario.mood}`,
+          `最近在想：${scenario.thought}`,
+          `今天想做：${scenario.activities}`,
+          `交流方式：${scenario.style}`,
+          `期待遇见：${scenario.person}`,
+        ].join('\n'),
+        createdAt,
+      });
+    });
   });
-  let sameDay = atLocalDay(now, clampOffset(3), 21, 16);
-  if (sameDay > now) sameDay = new Date(now.getTime() - 11 * 60_000);
+
+  // u0 保留两条演示叙事用记录：当晚追加的一条 + 更早的一条旧记录。
+  const sameDay = clampToAlreadyPast(atLocalDay(now, clampOffset(3), 21, 16), now);
   records.push({
     id: `cs-u0-demo-${shanghaiDateKey(sameDay)}-late`,
     userId: 'u0',
@@ -64,7 +85,7 @@ export function buildMockCurrentStateSeeds(now = new Date()): MockCurrentStateSe
     userId: 'u0',
     mood: '平静',
     text: '那天只是想安静地看完一本书。',
-    createdAt: legacyDay > now ? new Date(now.getTime() - 22 * 60_000) : legacyDay,
+    createdAt: clampToAlreadyPast(legacyDay, now),
   });
   return records;
 }

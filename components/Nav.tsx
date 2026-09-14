@@ -1,8 +1,9 @@
 'use client';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { CaretDownIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { useMe } from '@/lib/useMe';
+import { useDemoMe } from '@/lib/experience-mode/useDemoMe';
 import { isNavItemActive, resolveNav } from '@/lib/experience-mode/nav';
 import styles from './Nav.module.css';
 
@@ -19,8 +20,18 @@ export function Logo({ tone }: { tone: 'blue' | 'warm' }) {
 /** 导航始终随路由模式切换：/demo/** 下全部链接保持 /demo 前缀并显示演示徽章。 */
 export default function Nav({ tone, tagline, right }: { tone: 'blue' | 'warm'; tagline: string; right?: React.ReactNode }) {
   const me = useMe();
+  const demoMe = useDemoMe();
+  const router = useRouter();
   const pathname = usePathname() || '/';
   const { isDemo, items } = resolveNav(pathname);
+  const activeMe = isDemo ? demoMe : me;
+  const accountHref = isDemo ? '/demo/me' : activeMe.loggedIn ? '/me' : '/about';
+
+  const exitDemo = async () => {
+    await fetch('/api/auth/demo', { method: 'DELETE' }).catch(() => undefined);
+    router.replace('/about');
+    router.refresh();
+  };
   return (
     <header className="relative z-30 border-b border-[#b7a98e]/20 bg-[#fbf8f1]/90 backdrop-blur-md">
       <div className="mx-auto flex min-h-[74px] max-w-[1280px] items-center gap-8 px-5 lg:px-8">
@@ -67,22 +78,29 @@ export default function Nav({ tone, tagline, right }: { tone: 'blue' | 'warm'; t
           )}
 
           {right ?? (
-            <Link href={isDemo ? '/demo/me' : '/me'} className="flex shrink-0 items-center gap-2 text-[#173e70]" aria-label={isDemo ? '打开演示我的页面' : '打开我的页面'}>
-              {!isDemo && me.loggedIn && me.user?.avatarUrl ? (
-                // 真实登录后优先显示知乎头像；加载失败或未登录时回退到姓名首字
+            <>
+              {isDemo && (
+                <button type="button" onClick={exitDemo} className="hidden rounded-full border border-[#d4c7ae] bg-white/65 px-3 py-1.5 text-xs text-[#7b6745] transition hover:border-[#b8860b] hover:text-[#8a6d1a] xl:inline-flex">
+                  退出演示
+                </button>
+              )}
+              <Link href={accountHref} className="flex shrink-0 items-center gap-2 text-[#173e70]" aria-label={isDemo ? '打开演示身份的此刻页面' : activeMe.loggedIn ? '打开我的此刻页面' : '前往登录入口'}>
+              {activeMe.loggedIn && activeMe.user?.avatarUrl ? (
+                // 两种模式均优先显示对应身份的知乎头像；缺失时再回退为身份首字。
                 <img
-                  src={String(me.user.avatarUrl)}
-                  alt={String(me.user?.name || '头像')}
+                  src={String(activeMe.user.avatarUrl)}
+                  alt={String(activeMe.user?.name || '头像')}
                   referrerPolicy="no-referrer"
                   className="h-9 w-9 rounded-full border border-[#c8b998]/70 object-cover"
                 />
               ) : (
                 <span className="grid h-9 w-9 place-items-center rounded-full border border-[#c8b998]/70 bg-[#e6dcc9] font-display text-sm">
-                  {isDemo ? '演' : me.loggedIn ? me.user?.name?.slice(0, 1) : '遇'}
+                  {isDemo ? '演' : activeMe.loggedIn ? activeMe.user?.name?.slice(0, 1) : '遇'}
                 </span>
               )}
               <CaretDownIcon size={14} aria-hidden />
-            </Link>
+              </Link>
+            </>
           )}
         </div>
       </div>

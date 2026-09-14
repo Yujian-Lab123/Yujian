@@ -3,7 +3,7 @@
  */
 
 export const REAL_NAV: ReadonlyArray<readonly [string, string]> = [
-  ['个人', '/profile'],
+  ['我', '/profile'],
   ['此刻', '/me'],
   ['侧面', '/side'],
   ['遇见', '/encounter'],
@@ -11,10 +11,10 @@ export const REAL_NAV: ReadonlyArray<readonly [string, string]> = [
 ];
 
 export const DEMO_NAV: ReadonlyArray<readonly [string, string]> = [
-  ['个人', '/demo/profile'],
+  ['我', '/demo/profile'],
   ['此刻', '/demo/me'],
+  ['侧面', '/demo/side'],
   ['遇见', '/demo/encounter'],
-  ['连接', '/demo/connections'],
   ['关于遇见', '/about'],
 ];
 

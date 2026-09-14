@@ -8,6 +8,14 @@ export function llmConfigured(): boolean {
   return Boolean(process.env.LLM_API_KEY && process.env.LLM_BASE_URL);
 }
 
+/**
+ * 部分网关（如 Sealos 实测）不支持 response_format，会直接 400。
+ * 设 LLM_JSON_RESPONSE_FORMAT=off 时不发送该字段，改由提示词约束 + chatJSON 容错解析。
+ */
+export function jsonResponseFormatEnabled(): boolean {
+  return (process.env.LLM_JSON_RESPONSE_FORMAT ?? 'on').trim().toLowerCase() !== 'off';
+}
+
 export interface LLMLog { model: string; latencyMs: number; ok: boolean; error?: string; promptVersion: string }
 export const llmLogs: LLMLog[] = [];
 
@@ -46,7 +54,7 @@ export async function chatCompletion(system: string, user: string, opts?: ChatOp
         max_completion_tokens: opts?.maxTokens ?? 2000, // mimo 等推理模型需预留 reasoning 空间
         max_tokens: opts?.maxTokens ?? 2000,
         ...(typeof opts?.thinking === 'boolean' ? { enable_thinking: opts.thinking } : {}),
-        ...(opts?.json ? { response_format: { type: 'json_object' } } : {}),
+        ...(opts?.json && jsonResponseFormatEnabled() ? { response_format: { type: 'json_object' } } : {}),
       }),
       ...(opts?.timeoutMs ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {}),
     });
@@ -62,12 +70,26 @@ export async function chatCompletion(system: string, user: string, opts?: ChatOp
   }
 }
 
+/** 兼容模型不带 response_format 时的输出：剥离 ```json 围栏，回退取首个 {...} 块。 */
+export function extractJsonPayload(raw: string): string {
+  const trimmed = raw.trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const body = (fenced ? fenced[1] : trimmed).trim();
+  if (body.startsWith('{') || body.startsWith('[')) return body;
+  const start = body.search(/[{[]/);
+  if (start === -1) return body;
+  const openChar = body[start];
+  const closeChar = openChar === '{' ? '}' : ']';
+  const end = body.lastIndexOf(closeChar);
+  return end > start ? body.slice(start, end + 1) : body;
+}
+
 /** 让 LLM 输出符合 zod schema 的 JSON；失败返回 null（调用方回退 Mock） */
 export async function chatJSON<T>(schema: z.ZodType<T>, system: string, user: string): Promise<T | null> {
   const raw = await chatCompletion(system, user, { json: true });
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(extractJsonPayload(raw));
     const result = schema.safeParse(parsed);
     return result.success ? result.data : null;
   } catch {

@@ -8,6 +8,7 @@ import { resolveProfileEmptyState } from '@/lib/experience-mode/empty-state';
 import { getLatestProfileJobForUser } from '@/lib/profile/jobs';
 import ProfileExperience from './profile-experience';
 import ProfileGenerateButton from './profile-generate-button';
+import ProfileShareToggle from './profile-share-toggle';
 
 /**
  * 人物画像页（真实路由）：整页渲染画像产物(.profile.json)。?name=<slug> 查看指定人物。
@@ -31,7 +32,9 @@ export default async function ProfilePage() {
     ? resolveLocalAvatar(path.join(process.cwd(), 'public'), artifact.subject.name)
     : null;
 
-  if (artifact) return <ProfileExperience artifact={artifact} avatarSrc={avatarSrc} />;
+  // toolbar 插槽由 ProfileExperience 渲染在 Nav 之下，保证「公开到画像长廊」
+  // 开关在真实画像页始终有可见入口（此前该开关只存在于未被引用的浮层组件里）。
+  if (artifact) return <ProfileExperience artifact={artifact} avatarSrc={avatarSrc} toolbar={<ProfileShareToggle />} />;
 
   // 产品化空状态：按访客状态给出下一步引导（不出现开发口吻文案）。
   const emptyState = resolveProfileEmptyState({

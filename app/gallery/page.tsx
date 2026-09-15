@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Nav from '@/components/Nav';
 import GalleryGrid from './GalleryGrid';
 import { buildGalleryEntries } from '@/lib/gallery/data';
 
@@ -21,6 +22,7 @@ export default async function GalleryPage() {
 
   return (
     <main className="min-h-screen bg-[#f7f4ee]">
+      <Nav tone="warm" tagline="自愿公开 · 看见彼此愿意被理解的一面" />
       <section
         className="relative bg-[#e9e2d3] bg-cover bg-center"
         style={{ backgroundImage: "url('/images/gallery/hero/gallery-river-mountains-v1.png')" }}

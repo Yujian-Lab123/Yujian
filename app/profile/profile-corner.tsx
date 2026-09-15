@@ -35,8 +35,31 @@ export default function ProfileCorner({
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [shareState, setShareState] = useState<{ hasArtifact: boolean; shared: boolean } | null>(null);
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+
+  useEffect(() => {
+    fetch('/api/profile/share').then((r) => r.json()).then((d) => {
+      if (d.ok) setShareState({ hasArtifact: Boolean(d.hasArtifact), shared: Boolean(d.shared) });
+    }).catch(() => undefined);
+  }, []);
+
+  async function toggleShared(next: boolean) {
+    setError('');
+    try {
+      const res = await fetch('/api/profile/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shared: next }),
+      });
+      const d = await res.json();
+      if (!d.ok) throw new Error(d.error || '操作失败');
+      setShareState((s) => (s ? { ...s, shared: next } : s));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
 
   function pick(f: string) {
     setFile(f);
@@ -124,6 +147,22 @@ export default function ProfileCorner({
 
           {tab === 'generate' && (
             <div className="space-y-2 text-sm">
+              {shareState?.hasArtifact ? (
+                <label className="flex cursor-pointer items-center justify-between gap-2 rounded-md bg-[#f0ece3] px-2 py-1.5 text-xs">
+                  <span>公开到画像长廊</span>
+                  <input
+                    type="checkbox"
+                    checked={shareState.shared}
+                    onChange={(e) => toggleShared(e.target.checked)}
+                    className="h-4 w-4 accent-[#2c5f8a]"
+                    aria-label="公开到画像长廊"
+                  />
+                </label>
+              ) : (
+                <p className="rounded-md bg-[#f0ece3] px-2 py-1.5 text-[10px] leading-4 text-[#a09a8e]">
+                  生成画像后，可一键公开到画像长廊。
+                </p>
+              )}
               <button
                 type="button"
                 onClick={() => generate('zhihu')}

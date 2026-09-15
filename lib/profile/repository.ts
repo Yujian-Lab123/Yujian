@@ -111,3 +111,26 @@ export async function setProfileArtifactShared(slug: string, userId: string, sha
     .where(eq(profileArtifacts.id, row.id));
   return true;
 }
+
+/** 用户最新画像的可见性元数据（分享开关用）。 */
+export async function getLatestProfileArtifactShareStatus(
+  userId: string,
+): Promise<{ slug: string; sharedAt: Date | null } | null> {
+  const [row] = await db.select({ slug: profileArtifacts.slug, sharedAt: profileArtifacts.sharedAt }).from(profileArtifacts)
+    .where(eq(profileArtifacts.userId, userId))
+    .orderBy(desc(profileArtifacts.updatedAt)).limit(1);
+  return row ?? null;
+}
+
+/** 设置用户最新画像的公开状态（仅本人画像生效）：shared=true 进入画像长廊，false 撤下。 */
+export async function setLatestProfileArtifactShared(
+  userId: string,
+  shared: boolean,
+): Promise<{ slug: string } | null> {
+  const meta = await getLatestProfileArtifactShareStatus(userId);
+  if (!meta) return null;
+  await db.update(profileArtifacts)
+    .set({ sharedAt: shared ? new Date() : null, updatedAt: new Date() })
+    .where(eq(profileArtifacts.slug, meta.slug));
+  return { slug: meta.slug };
+}

@@ -8,7 +8,15 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const uid = await getRealSessionUserId();
   if (!uid) return NextResponse.json({ ok: false, loginRequired: true }, { status: 401 });
-  const meta = await getLatestProfileArtifactShareStatus(uid).catch(() => null);
+  // 不用 .catch(() => null) 兜底：那会把「表缺失/连接失败」伪装成「还没有产物」，
+  // 于是前端只显示一行灰字、开关凭空消失，故障无法被发现。
+  let meta: Awaited<ReturnType<typeof getLatestProfileArtifactShareStatus>>;
+  try {
+    meta = await getLatestProfileArtifactShareStatus(uid);
+  } catch (error) {
+    console.error('[profile/share] 读取分享状态失败', error);
+    return NextResponse.json({ ok: false, error: '读取公开状态失败，请稍后重试' }, { status: 500 });
+  }
   return NextResponse.json({
     ok: true,
     hasArtifact: Boolean(meta),

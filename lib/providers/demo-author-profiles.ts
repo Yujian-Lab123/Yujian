@@ -3,7 +3,7 @@ import 'server-only';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { ProfileArtifact } from '@/lib/profile/schema';
-import { readArtifactFile } from '@/lib/profile/store';
+import { readArtifactFile, resolveLocalAvatar } from '@/lib/profile/store';
 
 /** 只展示已确认可在演示中使用的采集输入对应的完整画像。 */
 const AUTHORIZED_PROFILES = [
@@ -17,6 +17,8 @@ export interface DemoAuthorProfile {
   label: string;
   contentCount: number;
   artifact: ProfileArtifact;
+  /** 知乎个人头像的本地解析路径（/avatars/<slug>）；缺失时回退水墨占位图。 */
+  avatarSrc: string | null;
 }
 
 function publicZhihuUrl(value: string | null): string | null {
@@ -45,6 +47,7 @@ export function getDemoAuthorProfiles(root = process.cwd()): DemoAuthorProfile[]
       id,
       label,
       contentCount: artifact.meta.content_count,
+      avatarSrc: artifact.subject.name ? resolveLocalAvatar(path.join(root, 'public'), artifact.subject.name) : null,
       artifact: {
         ...artifact,
         subject: { ...artifact.subject, name: label, avatarUrl: null },

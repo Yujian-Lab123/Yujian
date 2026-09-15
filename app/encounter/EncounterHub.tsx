@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -55,6 +56,20 @@ function routeFor(mode: 'real' | 'demo', route: '/profile' | '/me' | '/side' | '
   return mode === 'demo' ? `/demo${route}` : route;
 }
 
+/** 把目标区块带入视野；尊重系统的「减少动态效果」偏好。 */
+function scrollToSection(id: string) {
+  if (typeof window === 'undefined') return;
+  window.requestAnimationFrame(() => {
+    document.getElementById(id)?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+      block: 'start',
+    });
+  });
+}
+
+/** 请求超过该时长仍未结束，就在界面上说明情况，避免用户面对静止页面反复点击。 */
+const SLOW_RESPONSE_MS = 12000;
+
 /**
  * 相遇中枢：真实与演示共用同一 UI；路由、会话和数据由 mode 注入。
  * 侧面在这里始终以“可选准备”呈现，直到匹配契约正式支持持久化选择。
@@ -71,6 +86,20 @@ export default function EncounterHub({
   onRetry,
 }: EncounterHubProps) {
   const isDemo = mode === 'demo';
+  // 点击「开始整理今日相遇」但前置条件不满足时，必须留下可见反馈，不能静默中断。
+  const [blockedHint, setBlockedHint] = useState(false);
+  // 请求长时间没有结果时给出说明，避免页面看起来像"点了没反应"。
+  const [slowResponse, setSlowResponse] = useState(false);
+
+  useEffect(() => {
+    if (!loading) {
+      setSlowResponse(false);
+      return;
+    }
+    const timer = setTimeout(() => setSlowResponse(true), SLOW_RESPONSE_MS);
+    return () => clearTimeout(timer);
+  }, [loading]);
+
   const currentUpdated = isTodayInShanghai(currentState?.created_at);
   const hasRecommendations = started && cards.length > 0;
   const profileHref = routeFor(mode, '/profile');
@@ -133,15 +162,16 @@ export default function EncounterHub({
   const otherDirections = cards.slice(1, 3);
 
   const startEncounter = () => {
-    if (!profileReady) return;
+    // 前置条件不满足时不再静默 return：给出明确提示，并把人送到能补全的入口。
+    if (!profileReady) {
+      setBlockedHint(true);
+      scrollToSection('readiness-heading');
+      return;
+    }
+    setBlockedHint(false);
     onStart();
     // 请求状态原本只出现在首屏下方；点击后立即把反馈带入视野。
-    window.requestAnimationFrame(() => {
-      document.getElementById('encounter-recommendations')?.scrollIntoView({
-        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
-        block: 'start',
-      });
-    });
+    scrollToSection('encounter-recommendations');
   };
 
   return (
@@ -172,6 +202,11 @@ export default function EncounterHub({
             </button>
           )}
           <p className="mt-3 text-xs text-[#647487]" role="status" aria-live="polite">{encounterStatus}</p>
+          {blockedHint && (
+            <p className="mt-2 rounded-full bg-[#fdf5e5] px-3 py-1.5 text-xs text-[#967034]" role="alert">
+              还不能开始整理相遇：需要先完成长期画像。已为你定位到下方「长期画像」入口。
+            </p>
+          )}
         </div>
       </section>
 
@@ -223,6 +258,13 @@ export default function EncounterHub({
               <div className="flex min-h-44 flex-col items-center justify-center text-center" role="status" aria-live="polite">
                 <Clock className="animate-pulse text-[#b18443]" size={27} />
                 <p className="mt-3 text-sm text-[#68788d]">正在整理今天可能聊得来的方向…</p>
+                {slowResponse && (
+                  <p className="mt-2 max-w-md text-xs leading-5 text-[#a05a4a]">
+                    这次响应明显偏慢。你可以继续等待，也可以
+                    <button type="button" onClick={onRetry} className="mx-1 font-medium text-[#1c5d9d] underline">重新尝试</button>
+                    一次。
+                  </p>
+                )}
               </div>
             )}
 

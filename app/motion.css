@@ -278,6 +278,14 @@
 .reference-timeline { height: 246px; }
 .reference-timeline-rail { top: 94px; height: 128px; }
 .reference-timeline-item { padding-top: 78px; }
+/* 时间线是绝对定位且无 overflow:hidden，事件描述过长时会向下溢出压到
+ * 「在追求什么」（top 275px）。限制 3 行，保证文字底部 ≤ 263px。 */
+.reference-timeline-item span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
 .reference-timeline-item.item-0 { left: 14%; top: -32px; }
 .reference-timeline-item.item-1 { left: 33%; top: -12px; }
 .reference-timeline-item.item-2 { left: 52%; top: -38px; }

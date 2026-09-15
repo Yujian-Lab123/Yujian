@@ -56,7 +56,9 @@ export default async function DemoProfilePage({
     </section>
   );
 
-  if (artifact) return <ProfileExperience artifact={artifact} toolbar={toolbar} />;
+  // key 随答主变化：切换时完全重新挂载 ProfileExperience，清空连线/drawer 等
+  // 残留状态，避免旧布局与新数据混排（也是「切换后代表内容点不动」的修复）。
+  if (artifact) return <ProfileExperience key={selected?.id ?? 'demo'} artifact={artifact} avatarSrc={selected?.avatarSrc ?? null} toolbar={toolbar} />;
 
   return (
     <main className="min-h-screen bg-[#f7f4ee]">

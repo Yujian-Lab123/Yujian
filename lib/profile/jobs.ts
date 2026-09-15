@@ -4,7 +4,7 @@ import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, pool } from '../db/client';
-import { profileJobs, serviceHeartbeats } from '../db/schema';
+import { profileArtifacts, profileJobs, serviceHeartbeats } from '../db/schema';
 import { analyzeProfile } from './engine.ts';
 import { getZhihuRawContents } from '../db/users';
 import { saveProfileArtifact } from './repository';
@@ -105,6 +105,13 @@ export async function startProfileJobForUser(opts: {
   maxChars?: number;
   requestedBy?: string | null;
 }): Promise<ProfileJob> {
+  // 一次性锁定：已有成功产物时拒绝重复生成（重复生成会重烧 LLM 且覆盖已有画像）。
+  const [existing] = await db.select({ id: profileArtifacts.id, slug: profileArtifacts.slug }).from(profileArtifacts)
+    .where(eq(profileArtifacts.userId, opts.userId)).limit(1);
+  if (existing) {
+    throw new Error(`画像已生成过（${existing.slug}），当前版本不支持重复生成。`);
+  }
+
   const sentinel = `${ZHIHU_SOURCE_PREFIX}${opts.userId}`;
   const [inFlight] = await db.select().from(profileJobs)
     .where(and(eq(profileJobs.inputFile, sentinel), inArray(profileJobs.status, ['queued', 'running'])))

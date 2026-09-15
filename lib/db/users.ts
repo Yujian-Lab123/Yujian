@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm';
-import { createCipheriv, createHash, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { db } from './client';
 import { externalIdentities, users } from './schema';
 
@@ -124,6 +124,56 @@ export async function getZhihuRawContents(userId: string): Promise<unknown[]> {
   const [row] = await db.select({ rawContents: externalIdentities.rawContents }).from(externalIdentities)
     .where(and(eq(externalIdentities.provider, 'zhihu'), eq(externalIdentities.userId, userId))).limit(1);
   return Array.isArray(row?.rawContents) ? row.rawContents : [];
+}
+
+/** 解密已存储的知乎 Access Token（平台接口探测等工具场景使用）。 */
+export async function decryptZhihuAccessToken(userId: string): Promise<string | null> {
+  const source = process.env.TOKEN_ENCRYPTION_KEY;
+  if (!source) return null;
+  const [row] = await db.select({ encryptedAccessToken: externalIdentities.encryptedAccessToken }).from(externalIdentities)
+    .where(and(eq(externalIdentities.provider, 'zhihu'), eq(externalIdentities.userId, userId))).limit(1);
+  const stored = row?.encryptedAccessToken;
+  if (!stored) return null;
+  const [ivB64, tagB64, dataB64] = stored.split('.');
+  if (!ivB64 || !tagB64 || !dataB64) return null;
+  try {
+    const key = createHash('sha256').update(source).digest();
+    const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(ivB64, 'base64url'));
+    decipher.setAuthTag(Buffer.from(tagB64, 'base64url'));
+    return Buffer.concat([decipher.update(Buffer.from(dataB64, 'base64url')), decipher.final()]).toString('utf8');
+  } catch {
+    return null;
+  }
+}
+
+/** 内容清单：已采集的知乎内容（时间倒序），供画像页/长廊展示「已采集的真实数据」。 */
+export async function getZhihuContentInventory(userId: string, limit = 200): Promise<ZhihuContentInventoryItem[]> {
+  const { looseParseItems } = await import('../profile/store');
+  const raws = looseParseItems({ items: await getZhihuRawContents(userId) });
+  const ts = (v: unknown): number => (typeof v === 'number' ? v : v ? Date.parse(String(v)) || 0 : 0);
+  return raws
+    .sort((a, b) => ts(b.published_at) - ts(a.published_at))
+    .slice(0, limit)
+    .map((r) => ({
+      id: r.id || '',
+      title: r.title || '(无标题)',
+      type: r.type || '内容',
+      published_at: r.published_at ?? null,
+      url: r.url || '',
+      author: r.author || '',
+      textLength: (r.text || '').length,
+    }));
+}
+
+/** 内容清单条目：供长廊/画像页展示「已采集的真实内容」。 */
+export interface ZhihuContentInventoryItem {
+  id: string;
+  title: string;
+  type: string;
+  published_at: string | number | null;
+  url: string;
+  author: string;
+  textLength: number;
 }
 
 /** 身份附加信息（头像/主页/一句话），来自 external_identities.profile，

@@ -9,7 +9,7 @@ const STEPS = ['回答', '文章', '话题', '长期问题'];
 export default function Onboarding() {
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [understanding, setUnderstanding] = useState<any>(null);
+  const [inventory, setInventory] = useState<Array<{ id: string; title: string; type: string; url: string }>>([]);
   const [phase, setPhase] = useState<'reading' | 'result'>('reading');
 
   useEffect(() => {
@@ -17,24 +17,17 @@ export default function Onboarding() {
     (async () => {
       const meRes = await fetch('/api/me').then((r) => r.json());
       if (!meRes.ok) return router.push('/');
-      // 已有向量说明长期理解已经完成。直接展示结果，不能每次查看都再播放一次“读取”动画。
-      if (meRes.understanding) {
-        if (alive) {
-          setUnderstanding(meRes.understanding);
-          setPhase('result');
-        }
-        return;
-      }
       // 依次播放“正在读你允许我们看到的内容”
       for (let i = 1; i <= STEPS.length; i++) {
         await new Promise((r) => setTimeout(r, 550));
         if (!alive) return;
         setStep(i);
       }
+      // analyze 现在返回 inventory（已采集的真实内容清单），不再生成规则模板文案
       const res = await fetch('/api/profile/analyze', { method: 'POST' }).then((r) => r.json());
       if (!alive) return;
       if (res.ok) {
-        setUnderstanding(res.understanding);
+        setInventory(res.inventory || []);
         await new Promise((r) => setTimeout(r, 400));
         setPhase('result');
       }
@@ -66,47 +59,34 @@ export default function Onboarding() {
         </section>
       )}
 
-      {phase === 'result' && understanding && (
+      {phase === 'result' && (
         <section className="relative z-10 mx-auto max-w-4xl px-6 pb-24 pt-10">
-          <p className="text-center text-sm tracking-widest2 text-gold-500">遇 见 · AI 理 解 完 成</p>
+          <p className="text-center text-sm tracking-widest2 text-gold-500">遇 见 · 内 容 采 集 完 成</p>
           <h1 className="fade-up mt-4 text-center font-display text-4xl text-sumi-800">
-            你最近长期在意的，不只是「{understanding.topics[0] ?? 'AI'}」
+            已采集你的 {inventory.length} 篇知乎内容
           </h1>
           <p className="fade-up-1 mt-4 text-center text-sumi-500">
-            过去的内容里，你经常讨论：{understanding.topics.join('、')}
+            这些是你公开写下的真实内容——完整画像与匹配都以它们为原料。
           </p>
 
-          <div className="card-warm fade-up-2 mx-auto mt-10 max-w-2xl p-10 text-center">
-            <p className="text-xs tracking-widest2 text-gold-500">但这些内容背后，反复出现的一个问题是</p>
-            <p className="mt-4 font-display text-3xl leading-snug text-sumi-800">“{understanding.coreQuestion}”</p>
-            <svg className="mx-auto mt-4 w-40 opacity-60" viewBox="0 0 160 12" fill="none">
-              <path d="M4 8 Q60 2 156 6" stroke="#a9834a" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
-          </div>
-
-          <div className="fade-up-3 mt-8 grid gap-4 sm:grid-cols-2">
-            {understanding.facets.map((f: any) => (
-              <div key={f.title} className="card-warm flex items-start gap-4 p-5">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-paper-200 text-lg">{f.icon}</span>
-                <div>
-                  <p className="font-medium text-sumi-800">{f.title}</p>
-                  <p className="mt-1 text-sm leading-6 text-sumi-500">{f.text}</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {f.tags.map((t: string) => <span key={t} className="chip-warm">{t}</span>)}
-                  </div>
-                </div>
-              </div>
+          <div className="fade-up-2 mx-auto mt-10 max-w-2xl divide-y divide-[#e5dfd3] overflow-hidden rounded-xl border border-[#d8d2c6]/60 bg-[#fbf8f1]">
+            {inventory.slice(0, 50).map((item) => (
+              <a key={item.id || item.title} href={item.url || '#'} target="_blank" rel="noreferrer"
+                className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-[#f4ecdf]/60">
+                <span className="min-w-0 truncate text-sm text-sumi-700">{item.title}</span>
+                <span className="shrink-0 text-[11px] text-sumi-400">{item.type}</span>
+              </a>
             ))}
+            {inventory.length === 0 && (
+              <p className="px-5 py-6 text-center text-sm text-sumi-400">暂未采集到内容，可稍后重新授权。</p>
+            )}
           </div>
 
           <div className="mt-12 text-center">
-            <button onClick={() => router.push('/encounter')} className="btn-primary-dark px-14 text-lg">
-              开始遇见 <span aria-hidden>→</span>
+            <button onClick={() => router.push('/profile')} className="btn-primary-dark px-14 text-lg">
+              去生成完整画像 <span aria-hidden>→</span>
             </button>
-            <div className="mt-4">
-              <button className="btn-ghost" onClick={() => alert('谢谢反馈！理解会随你新增的内容持续更新。')}>有点不准</button>
-            </div>
-            <p className="mt-2 text-[11px] text-sumi-400">{understanding.note}</p>
+            <p className="mt-3 text-[11px] text-sumi-400">画像基于以上内容生成，仅你可见，不会用于对外展示</p>
           </div>
         </section>
       )}

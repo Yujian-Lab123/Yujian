@@ -7,10 +7,12 @@ out
 .tmp-worktrees
 .codex
 browser_data
-data
+data/*
+!data/crawler
 media-crawler
 audit-output
-profile-output
+profile-output/*
+!profile-output/*.profile.json
 design-qa
 zhihu-hackathon
 scripts/article-aiwork.txt

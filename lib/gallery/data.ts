@@ -53,6 +53,14 @@ function buildPersonaEntries(): GalleryEntry[] {
   }));
 }
 
+/** 真实条目复用人设封面：按 slug 稳定哈希取一张（真实用户没有专属封面图，避免空白）。 */
+function coverForRealSlug(slug: string): string {
+  const ids = GALLERY_PERSONAS.map((p) => p.id);
+  let h = 0;
+  for (let i = 0; i < slug.length; i++) h = (h * 31 + slug.charCodeAt(i)) >>> 0;
+  return coverOf(ids[h % ids.length]);
+}
+
 /** 真实条目：本人自愿公开（sharedAt 非空）的真实用户画像。 */
 async function buildSharedEntries(): Promise<GalleryEntry[]> {
   try {
@@ -72,7 +80,7 @@ async function buildSharedEntries(): Promise<GalleryEntry[]> {
         hasArtifact: true,
         slug: item.slug,
         profileHref: `/gallery/${encodeURIComponent(item.slug)}`,
-        cover: coverOf(item.slug),
+        cover: coverForRealSlug(item.slug),
         isMock: false,
       };
     });

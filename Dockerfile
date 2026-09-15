@@ -36,6 +36,9 @@ COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/lib ./lib
+# 画像产物与提取缓存的可写目录：容器以非 root 运行，必须预建并授权
+RUN mkdir -p /app/profile-output /app/data/crawler \
+    && chown -R nextjs:nextjs /app/profile-output /app/data
 USER nextjs
 EXPOSE 3000
 CMD ["npm", "run", "start:all"]

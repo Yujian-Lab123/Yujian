@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateCandidate, filterEligibleCandidates, type CandidateFilterContext, type CandidateUser } from './candidate-filter';
+import { evaluateCandidate, filterCandidatesByExperienceMode, filterEligibleCandidates, type CandidateFilterContext, type CandidateUser } from './candidate-filter';
 
 const candidate = (id: string, intents = ['轻松交流'], enabled = 1): CandidateUser => ({
   id,
@@ -17,6 +17,11 @@ const context = (overrides: Partial<CandidateFilterContext> = {}): CandidateFilt
 });
 
 describe('candidate filter', () => {
+  it('separates real and demo candidates before matching', () => {
+    const mixed = [{ id: 'real', is_mock: 0 }, { id: 'demo', is_mock: 1 }];
+    expect(filterCandidatesByExperienceMode(mixed, 'real').map((item) => item.id)).toEqual(['real']);
+    expect(filterCandidatesByExperienceMode(mixed, 'demo').map((item) => item.id)).toEqual(['demo']);
+  });
   it('keeps only eligible candidates', () => {
     const result = filterEligibleCandidates([
       candidate('viewer'),

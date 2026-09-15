@@ -9,6 +9,6 @@ export async function GET() {
   const uid = await getDemoSessionUserId();
   if (!uid) return NextResponse.json({ ok: false, loginRequired: true }, { status: 401 });
   // 演示模式：候选池仅保留 Mock 用户，绝不暴露真实用户。
-  const cards = await filterPoolByMode(await buildEncounters(uid), 'demo');
+  const cards = await filterPoolByMode(await buildEncounters(uid, 'demo'), 'demo');
   return NextResponse.json({ ok: true, encounters: cards });
 }

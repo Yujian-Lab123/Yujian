@@ -34,6 +34,7 @@ describe('experience-mode navigation isolation', () => {
     expect(demoHrefs).not.toContain('/encounter');
     expect(demoHrefs).not.toContain('/gallery');
     expect(demoHrefs).not.toContain('/about');
+    expect(demoHrefs).not.toContain('/demo/content');
     expect(realHrefs).not.toContain('/demo/profile');
     expect(realHrefs).not.toContain('/demo/encounter');
   });

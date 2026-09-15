@@ -16,7 +16,6 @@ export const DEMO_NAV: ReadonlyArray<readonly [string, string]> = [
   ['此刻', '/demo/me'],
   ['侧面', '/demo/side'],
   ['遇见', '/demo/encounter'],
-  ['内容样本', '/demo/content'],
   ['演示说明', '/demo'],
 ];
 

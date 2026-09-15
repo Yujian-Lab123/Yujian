@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { contentBridge, deepMatch } from '../ai/bridge';
 import { db, getUserVectors, recommendations, connections, connectionIntents, feedback } from '../db';
 import { getUser, listUsers } from '../db/users';
-import { filterEligibleCandidates } from './candidate-filter';
+import { filterCandidatesByExperienceMode, filterEligibleCandidates } from './candidate-filter';
 import type { RecCard } from './contracts';
 import { multiRouteRecall } from './multi-recall';
 import { rerankWithModel } from './rerank-pipeline';
@@ -11,7 +11,7 @@ import { rankRecalledCandidates, type RankedCandidate } from './scoring';
 
 export type { RecCard } from './contracts';
 
-export async function buildEncounters(viewerId: string): Promise<RecCard[]> {
+export async function buildEncounters(viewerId: string, mode: 'real' | 'demo'): Promise<RecCard[]> {
   const [viewer, viewerVectors, allUsers, existingRecs, existingConnections, existingIntents, ignored] = await Promise.all([
     getUser(viewerId),
     getUserVectors(viewerId),
@@ -28,7 +28,7 @@ export async function buildEncounters(viewerId: string): Promise<RecCard[]> {
   if (!viewer) return [];
   const currentViewer = viewer;
 
-  const candidates = filterEligibleCandidates(allUsers, {
+  const candidates = filterEligibleCandidates(filterCandidatesByExperienceMode(allUsers, mode), {
     viewerId,
     viewerIntents: viewer.intents,
     connectedUserIds: new Set(existingConnections.map((item) => item.userA === viewerId ? item.userB : item.userA)),

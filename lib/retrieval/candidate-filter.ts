@@ -7,6 +7,14 @@ export interface CandidateUser {
   intents: string[];
 }
 
+/** 候选在召回/排序/落库之前按体验模式隔离，不能只在 API 返回时过滤。 */
+export function filterCandidatesByExperienceMode<T extends { is_mock: number }>(
+  candidates: readonly T[],
+  mode: 'real' | 'demo',
+): T[] {
+  return candidates.filter((candidate) => Boolean(candidate.is_mock) === (mode === 'demo'));
+}
+
 export type CandidateExclusionReason =
   | 'self'
   | 'encounter_disabled'

@@ -76,8 +76,19 @@ export default function EncounterHub({
   const profileHref = routeFor(mode, '/profile');
   const momentHref = routeFor(mode, '/me');
   const sideHref = routeFor(mode, '/side');
-  const primaryHref = !profileReady ? profileHref : hasRecommendations ? '#encounter-recommendations' : undefined;
-  const primaryLabel = !profileReady ? '先完成长期画像' : hasRecommendations ? '查看今日相遇' : '查看今日相遇';
+  const primaryHref = !profileReady ? profileHref : started ? '#encounter-recommendations' : undefined;
+  const primaryLabel = !profileReady ? '先完成长期画像' : loading && started ? '正在整理相遇' : started && !hasRecommendations ? '查看相遇状态' : '查看今日相遇';
+  const encounterStatus = !profileReady
+    ? '长期理解完成后才能开始整理候选。'
+    : started && loading
+      ? '请求已开始，正在整理允许公开的候选…'
+      : started && error
+        ? '整理失败，请查看下方原因并重试。'
+        : started && !hasRecommendations
+          ? isDemo ? '演示候选暂时没有新方向。' : '本次已完成查询，目前没有可供相遇的真实候选。'
+          : started
+            ? '相遇方向已整理好，继续查看下方结果。'
+            : '先确认这次想如何被看见；主动开始后才会整理候选。';
 
   const readinessRows = [
     {
@@ -124,6 +135,13 @@ export default function EncounterHub({
   const startEncounter = () => {
     if (!profileReady) return;
     onStart();
+    // 请求状态原本只出现在首屏下方；点击后立即把反馈带入视野。
+    window.requestAnimationFrame(() => {
+      document.getElementById('encounter-recommendations')?.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+        block: 'start',
+      });
+    });
   };
 
   return (
@@ -141,7 +159,7 @@ export default function EncounterHub({
           }`}>
             {isDemo ? '演示模式 · 预置数据' : '真实使用中 · 仅使用你的数据'}
           </span>
-          <p className="mt-3 text-[11px] tracking-[0.27em] text-[#7c725f]">今日相遇已准备</p>
+          <p className="mt-3 text-[11px] tracking-[0.27em] text-[#7c725f]">{started && loading ? '正在整理今日相遇' : started && error ? '今日相遇暂未完成' : started && !hasRecommendations ? '今日相遇已查询' : '今日相遇已准备'}</p>
           <h1 className="mt-1.5 font-display text-[38px] font-semibold leading-tight tracking-[0.075em] text-[#0d3765] sm:text-[48px]">今天，和谁聊一句？</h1>
           <p className="mt-2.5 max-w-2xl text-sm leading-6 text-[#52677c] sm:text-[15px]">长期表达是基础；此刻与主动选择的侧面，决定这次相遇会参考什么。</p>
           {primaryHref ? (
@@ -153,7 +171,7 @@ export default function EncounterHub({
               {primaryLabel}<ArrowRight size={17} weight="bold" />
             </button>
           )}
-          <p className="mt-3 text-xs text-[#647487]">{isDemo ? '演示中已为你准备完整相遇流程；真实使用时会在你主动开始后再读取候选。' : '先确认这次想如何被看见；只有你主动开始后，系统才会整理真实候选。'}</p>
+          <p className="mt-3 text-xs text-[#647487]" role="status" aria-live="polite">{encounterStatus}</p>
         </div>
       </section>
 
@@ -233,11 +251,13 @@ export default function EncounterHub({
 
             {!loading && !error && profileReady && started && !hasRecommendations && (
               <div className="py-8 text-center">
-                <p className="font-display text-xl text-[#173e70]">今天还没有新的相遇方向</p>
-                <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-[#68788d]">更新一下此刻，或选择一个想被看见的侧面；出现合适的人时，会从一篇真实内容开始认识 TA。</p>
+                <p className="font-display text-xl text-[#173e70]">{isDemo ? '今天还没有新的相遇方向' : '目前没有可供相遇的真实候选'}</p>
+                <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-[#68788d]">{isDemo
+                  ? '更新一下此刻，或选择一个想被看见的侧面；出现合适的人时，会从一篇真实内容开始认识 TA。'
+                  : '查询已完成，但当前真实候选池还没有合适的人。此刻状态已经参与判断，无需反复填写；演示身份不会混入真实推荐。'}</p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  <Link href={momentHref} className="rounded-full bg-[#16466f] px-4 py-2 text-xs font-medium text-white hover:bg-[#0e385e]">更新此刻</Link>
-                  <Link href={sideHref} className="rounded-full border border-[#bfcadd] bg-white px-4 py-2 text-xs font-medium text-[#244e7d] hover:border-[#4773a0]">选择侧面</Link>
+                  <button type="button" onClick={onRetry} className="rounded-full bg-[#16466f] px-4 py-2 text-xs font-medium text-white hover:bg-[#0e385e]">重新查询</button>
+                  <Link href={isDemo ? sideHref : profileHref} className="rounded-full border border-[#bfcadd] bg-white px-4 py-2 text-xs font-medium text-[#244e7d] hover:border-[#4773a0]">{isDemo ? '选择侧面' : '返回画像'}</Link>
                 </div>
               </div>
             )}
@@ -307,7 +327,7 @@ export default function EncounterHub({
                   <li key={item.label} className="flex gap-3">
                     <Icon size={21} className="mt-0.5 shrink-0 text-[#28547e]" aria-hidden />
                     <div>
-                      <p className="text-sm font-medium text-[#244c78]">{item.label}：{item.active ? item.tag : item.label === '侧面' ? '由你选择' : '等待更新'}</p>
+                      <p className="text-sm font-medium text-[#244c78]">{item.label}：{item.active ? item.tag : item.label === '侧面' ? '由你选择' : item.label === '此刻' && currentState ? '已有记录，可更新' : item.label === '长期画像' ? '待完成' : '尚未记录'}</p>
                       <p className="mt-0.5 text-xs leading-5 text-[#718096]">{item.label === '长期画像' ? '作为基础理解' : item.label === '此刻' ? '今天的状态可参与方向判断' : '决定想从哪一面开始相识'}</p>
                     </div>
                   </li>
@@ -332,7 +352,7 @@ export default function EncounterHub({
               <div>
                 <h2 className="font-display text-xl font-semibold text-[#143d6c]">关于「遇见」</h2>
                 <p className="mt-2 text-sm leading-6 text-[#66788c]">不是刷人，而是先看见一句话、一种状态、一个侧面，再决定是否要真正认识 TA。</p>
-                <Link href="/about" className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-[#1c5d9d] hover:underline">了解更多 <ArrowRight size={15} /></Link>
+                <Link href={isDemo ? '/demo' : '/about'} className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-[#1c5d9d] hover:underline">了解更多 <ArrowRight size={15} /></Link>
               </div>
             </div>
           </section>

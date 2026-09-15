@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import EncounterHub, { type EncounterCard } from '@/app/encounter/EncounterHub';
@@ -12,9 +12,11 @@ export default function DemoEncounterPage() {
   const me = useDemoMe();
   const [cards, setCards] = useState<EncounterCard[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [started, setStarted] = useState(false);
   const [loadError, setLoadError] = useState('');
 
   const load = useCallback(async () => {
+    setLoaded(false);
     setLoadError('');
     try {
       const response = await fetch('/api/demo/encounters', { cache: 'no-store' });
@@ -29,23 +31,27 @@ export default function DemoEncounterPage() {
     }
   }, [router]);
 
-  useEffect(() => { void load(); }, [load]);
+  const start = useCallback(() => {
+    if (started) return;
+    setStarted(true);
+    void load();
+  }, [load, started]);
 
   return (
     <>
       <EncounterHub
         mode="demo"
         cards={cards}
-        loading={!loaded || me.loading}
+        loading={me.loading || (started && !loaded)}
         error={loadError || me.error || ''}
         profileReady={Boolean(me.understanding)}
         currentState={me.currentState}
-        started={true}
-        onStart={() => void load()}
+        started={started}
+        onStart={start}
         onRetry={() => void load()}
       />
       <div className="bg-[#fbf8f1] px-5 pb-12 text-center">
-        <Link href="/demo/content" className="text-xs text-[#1769d7] underline underline-offset-4">浏览已授权的真实答主内容样本</Link>
+        <Link href="/demo/profile" className="text-xs text-[#1769d7] underline underline-offset-4">查看已授权答主的完整画像与依据</Link>
       </div>
     </>
   );

@@ -15,6 +15,7 @@ export default function EncounterPage() {
   const [loadError, setLoadError] = useState('');
 
   const load = useCallback(async () => {
+    setLoaded(false);
     setLoadError('');
     try {
       const response = await fetch('/api/encounters', { cache: 'no-store' });

@@ -4,7 +4,7 @@ import { getRealSessionUserId } from '@/lib/experience-mode/session';
 
 export const dynamic = 'force-dynamic';
 
-// GET —— 当前用户的分享状态（是否有画像产物 + 是否已公开）
+// GET —— 当前用户的分享状态（是否有画像产物 + 是否已公开到画像长廊）
 export async function GET() {
   const uid = await getRealSessionUserId();
   if (!uid) return NextResponse.json({ ok: false, loginRequired: true }, { status: 401 });

@@ -5,21 +5,58 @@ import type { ProfileArtifact, RawContent } from './schema.ts';
 
 // ============ 画像产物存取(CLI 与 /profile API 共用) ============
 
-/** 宽松字段映射:id/title/question_title/content/content_text/excerpt/desc/author/nickname/publish_time/created_at... */
+/** 规范化字段名：小写并去掉下划线/空格/连字符，使 Content / content_text / Created-Time 互认。 */
+function normKey(k: string): string {
+  return k.toLowerCase().replace(/[_\s-]/g, '');
+}
+
+/** 把嵌套对象（如知乎开放平台的 Target/Content 子对象）提升一层，不覆盖已有非空字段。 */
+function flattenOneLevel(obj: Record<string, unknown>): Record<string, unknown> {
+  const flat: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+      for (const [k2, v2] of Object.entries(v as Record<string, unknown>)) {
+        const existing = flat[k2];
+        if (existing === undefined || existing === null || existing === '') flat[k2] = v2;
+      }
+    } else {
+      flat[k] = v;
+    }
+  }
+  return flat;
+}
+
+/** 知乎正文常是 HTML 片段：仅当检测到标签时才清洗，避免误伤含 < > 的纯文本。 */
+function cleanHtml(s: string): string {
+  if (!/<\s*(p|div|br|img|span|a|section|li|h[1-6])[\s>/]/i.test(s)) return s;
+  return s
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|h[1-6])>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/** 宽松字段映射:id/title/question_title/content/content_text/excerpt/desc/author/nickname/publish_time/created_at...
+ *  兼容大小写/下划线差异（知乎开放平台返回 Content/Excerpt 等大写驼峰）与一层嵌套对象。 */
 export function looseExtract(obj: Record<string, unknown>): RawContent {
+  const flat = flattenOneLevel(obj);
+  const norm = new Map<string, unknown>();
+  for (const [k, v] of Object.entries(flat)) norm.set(normKey(k), v);
   const pick = (...keys: string[]): string | undefined => {
     for (const k of keys) {
-      const v = obj[k];
+      const v = norm.get(normKey(k));
       if (v !== undefined && v !== null && String(v).trim() !== '') return String(v);
     }
     return undefined;
   };
   const dateRaw = pick('published_at', 'publish_time', 'created_at', 'created_time', 'date');
   const dateNum = dateRaw !== undefined && /^-?\d+(\.\d+)?$/.test(dateRaw) ? Number(dateRaw) : undefined;
+  const rawText = pick('content', 'content_text', 'text', 'excerpt', 'desc', 'description', 'summary', 'contenthtml', 'body') ?? '';
   return {
     id: pick('id', 'content_id', 'cid'),
     title: pick('title', 'question_title', 'post_title', 'name'),
-    text: pick('content', 'content_text', 'text', 'excerpt', 'desc', 'description', 'summary') ?? '',
+    text: cleanHtml(rawText),
     type: pick('type', 'content_type', 'kind'),
     url: pick('url', 'source_url', 'link'),
     published_at: dateNum ?? dateRaw ?? null,

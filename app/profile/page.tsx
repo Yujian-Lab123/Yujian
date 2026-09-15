@@ -6,6 +6,7 @@ import { hasUserVectors } from '@/lib/db';
 import { getRealSessionUserId, hasDemoSession } from '@/lib/experience-mode/session';
 import { resolveProfileEmptyState } from '@/lib/experience-mode/empty-state';
 import ProfileExperience from './profile-experience';
+import ProfileGenerateButton from './profile-generate-button';
 
 /**
  * 人物画像页（真实路由）：整页渲染画像产物(.profile.json)。?name=<slug> 查看指定人物。
@@ -52,8 +53,9 @@ export default async function ProfilePage() {
           <>
             <p className="font-display text-2xl text-[#173e70]">你的长期理解已经准备好了</p>
             <p className="mt-3 text-sm leading-6 text-[#77859a]">
-              相遇会使用这份长期理解；完整的证据画像会在有可用画像产物后显示。无需再次阅读或等待。
+              长期理解已用于相遇匹配。想要完整的证据画像（六维 + 时间线 + 证据链），点下面生成一次即可。
             </p>
+            <ProfileGenerateButton />
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <a href="/onboarding" className="rounded-lg border border-[#c8b998] px-6 py-2.5 text-sm text-[#173e70]">查看长期理解</a>
               <Link href="/encounter" className="rounded-lg bg-[#173e70] px-6 py-2.5 text-sm text-white">去遇见</Link>

@@ -133,7 +133,7 @@ export default function ProfileCorner({
                 {busy ? '生成中…' : '用我的知乎内容生成画像'}
               </button>
               <p className="text-[10px] leading-4 text-[#8a857c]">
-                基于你授权采集的知乎内容生成完整证据画像（约 1–3 分钟，可离开页面）
+                基于你授权采集的知乎内容生成完整证据画像（约 5–10 分钟，视内容量，可离开页面）
               </p>
               <p className="pt-1 text-[10px] text-[#a09a8e]">或使用预置数据集（开发调试）：</p>
               <select

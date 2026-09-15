@@ -122,6 +122,8 @@ export async function startProfileJobForUser(opts: {
   if (!contents.length) {
     throw new Error('还没有采集到你的知乎内容，请先完成一次知乎登录授权。');
   }
+  // 采集上限 120，生成同样护栏：超出的取最新 N 条，控制时长与成本。
+  const capped = { ...opts, maxItems: opts.maxItems ?? 120 };
   const id = `job-${Date.now()}-${randomBytes(4).toString('hex')}`;
   const [row] = await db.insert(profileJobs).values({
     id,
@@ -129,7 +131,7 @@ export async function startProfileJobForUser(opts: {
     status: 'queued',
     inputFile: `${ZHIHU_SOURCE_PREFIX}${opts.userId}`,
     subjectName: opts.name,
-    options: { maxItems: opts.maxItems, maxChars: opts.maxChars },
+    options: { maxItems: capped.maxItems, maxChars: opts.maxChars },
     message: '已进入队列，等待画像 Worker',
   }).returning();
   return publicJob(row);

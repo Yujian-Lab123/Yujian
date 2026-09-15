@@ -98,7 +98,7 @@ export interface OAuthDebug {
   codeReceived?: boolean; codeLength?: number;
   tokenExchange?: Record<string, unknown>;
   stateReturned?: boolean; stateVerified?: boolean;
-  profileFetched?: boolean; contentsFetched?: boolean;
+  profileFetched?: boolean; contentsFetched?: boolean; contentsCount?: number;
 }
 
 export let lastOAuthDebug: OAuthDebug | null = null;
@@ -236,4 +236,51 @@ export async function fetchZhihuContents(accessToken: string, limit = 20): Promi
   } catch (e: any) {
     return { ok: false, items: [], message: String(e?.message || e).slice(0, 200) };
   }
+}
+
+/**
+ * 分页拉全：按 Limit=pageLimit / Offset 递增翻页，直到拿满 target 或翻完。
+ * 单页失败不整体失败（保留已取到的），按 Id 去重防止 Offset 漂移导致重复。
+ */
+export async function fetchAllZhihuContents(
+  accessToken: string,
+  opts: { target?: number; pageLimit?: number; maxPages?: number } = {},
+): Promise<{ ok: boolean; items: any[]; pages: number; message?: string }> {
+  const { target = 120, pageLimit = 50, maxPages = 3 } = opts;
+  const all: any[] = [];
+  const seen = new Set<string>();
+  let lastError = '';
+  for (let page = 0; page < maxPages && all.length < target; page++) {
+    const qs = new URLSearchParams({
+      Limit: String(pageLimit), ContentType: 'all',
+      Offset: String(page * pageLimit), SortField: 'ts', SortOrder: 'desc',
+    });
+    try {
+      const res = await fetch(`${DEVELOPER_API}/api/v1/user/contents?${qs}`, {
+        headers: userHeaders(accessToken), signal: AbortSignal.timeout(20_000),
+      });
+      const payload = await res.json().catch(() => null);
+      if (payload?.Code !== 0 && payload?.code !== 0) {
+        lastError = payload?.Message || payload?.message || `HTTP ${res.status}`;
+        break;
+      }
+      const data = payload?.Data || payload?.data || {};
+      const items = Array.isArray(data?.Items) ? data.Items : Array.isArray(data) ? data : [];
+      let fresh = 0;
+      for (const item of items) {
+        const key = String(item?.Id ?? item?.id ?? item?.Title ?? item?.title ?? `idx-${all.length}`);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        all.push(item);
+        fresh += 1;
+      }
+      if (items.length < pageLimit) break; // 已到底
+      if (fresh === 0) break; // 全重复（Offset 漂移），停止
+    } catch (e: any) {
+      lastError = String(e?.message || e).slice(0, 200);
+      break;
+    }
+  }
+  if (all.length === 0 && lastError) return { ok: false, items: [], pages: 0, message: lastError };
+  return { ok: true, items: all.slice(0, target), pages: Math.ceil(all.length / pageLimit) };
 }

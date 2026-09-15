@@ -4,7 +4,7 @@ import { computeUserVectors } from '@/lib/db';
 import { saveZhihuAuth, upsertRealUser } from '@/lib/db/users';
 import { createSession, OAUTH_STATE_COOKIE, SESSION_COOKIE, sessionCookieOptions } from '@/lib/session';
 import {
-  exchangeToken, fetchZhihuContents, fetchZhihuProfile, lastOAuthDebug,
+  exchangeToken, fetchAllZhihuContents, fetchZhihuProfile, lastOAuthDebug,
   recordDebug, stateEqual, zhihuConfigured,
 } from '@/lib/providers/zhihu';
 
@@ -48,10 +48,10 @@ export async function GET(req: Request) {
     const profile = await fetchZhihuProfile(accessToken);
     const userId = await upsertRealUser(profile);
 
-    // P3 实测入口：尽力拉取创作内容原文存档；失败不阻断登录
+    // P3 实测入口：分页拉取创作内容原文存档（目标 120 条）；失败不阻断登录
     recordDebug({ stage: 'contents_fetch_started' });
-    const contents = await fetchZhihuContents(accessToken, 20);
-    recordDebug({ stage: 'authorized', profileFetched: true, contentsFetched: contents.ok });
+    const contents = await fetchAllZhihuContents(accessToken, { target: 120, pageLimit: 50, maxPages: 3 });
+    recordDebug({ stage: 'authorized', profileFetched: true, contentsFetched: contents.ok, contentsCount: contents.items.length });
 
     await saveZhihuAuth(
       userId, profile.zhihuUserId, accessToken,

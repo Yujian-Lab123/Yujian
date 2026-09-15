@@ -241,16 +241,19 @@ export async function fetchZhihuContents(accessToken: string, limit = 20): Promi
 /**
  * 分页拉全：按 Limit=pageLimit / Offset 递增翻页，直到拿满 target 或翻完。
  * 单页失败不整体失败（保留已取到的），按 Id 去重防止 Offset 漂移导致重复。
+ * charsBudget：累计正文字数预算（默认 20 万）——先到字数先停，避免「条数够但全是长文」的超载。
  */
 export async function fetchAllZhihuContents(
   accessToken: string,
-  opts: { target?: number; pageLimit?: number; maxPages?: number } = {},
+  opts: { target?: number; pageLimit?: number; maxPages?: number; charsBudget?: number } = {},
 ): Promise<{ ok: boolean; items: any[]; pages: number; message?: string }> {
   const { target = 120, pageLimit = 50, maxPages = 3 } = opts;
+  const charsBudget = opts.charsBudget ?? Number(process.env.PROFILE_CHAR_BUDGET ?? 200_000);
   const all: any[] = [];
   const seen = new Set<string>();
+  let chars = 0;
   let lastError = '';
-  for (let page = 0; page < maxPages && all.length < target; page++) {
+  for (let page = 0; page < maxPages && all.length < target && chars < charsBudget; page++) {
     const qs = new URLSearchParams({
       Limit: String(pageLimit), ContentType: 'all',
       Offset: String(page * pageLimit), SortField: 'ts', SortOrder: 'desc',
@@ -273,6 +276,7 @@ export async function fetchAllZhihuContents(
         seen.add(key);
         all.push(item);
         fresh += 1;
+        chars += estimateItemChars(item);
       }
       if (items.length < pageLimit) break; // 已到底
       if (fresh === 0) break; // 全重复（Offset 漂移），停止
@@ -283,4 +287,19 @@ export async function fetchAllZhihuContents(
   }
   if (all.length === 0 && lastError) return { ok: false, items: [], pages: 0, message: lastError };
   return { ok: true, items: all.slice(0, target), pages: Math.ceil(all.length / pageLimit) };
+}
+
+/** 估算单条内容的正文字符量（字段名大小写/嵌套都可能是知乎开放平台的形状）。 */
+function estimateItemChars(item: any): number {
+  if (!item || typeof item !== 'object') return 0;
+  let len = 0;
+  for (const v of Object.values(item)) {
+    if (typeof v === 'string') len += v.length;
+    else if (v && typeof v === 'object' && !Array.isArray(v)) {
+      for (const sv of Object.values(v as Record<string, unknown>)) {
+        if (typeof sv === 'string') len += sv.length;
+      }
+    }
+  }
+  return len;
 }

@@ -202,6 +202,18 @@ export async function processProfileJob(job: typeof profileJobs.$inferSelect, ro
       const stored = await getZhihuRawContents(userId);
       raws = looseParseItems({ items: stored });
       if (!raws.length) throw new Error('数据库中没有可用的知乎内容，请重新授权采集一次。');
+      // 总字数预算：按最新优先累计正文字数，超预算的内容截掉（控制时长与中转站成本）。
+      const charBudget = Number(process.env.PROFILE_CHAR_BUDGET ?? 200_000);
+      let used = 0;
+      const kept: typeof raws = [];
+      for (const r of raws) {
+        const len = (r.text || '').length;
+        if (used + len > charBudget && kept.length > 0) break;
+        kept.push(r);
+        used += len;
+      }
+      raws = kept;
+      if (!raws.length) throw new Error('内容正文全部为空，无法生成画像。');
       // 容器内可能没有 data/crawler 目录：缓存放到系统临时目录，避免写盘失败。
       cacheFile = path.join(os.tmpdir(), `yujian-extract-cache-${userId}.json`);
     } else {

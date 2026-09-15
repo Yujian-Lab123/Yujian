@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { profileJobs, serviceHeartbeats } from '../db/schema';
 import { analyzeProfile } from './engine.ts';
@@ -80,6 +80,14 @@ export async function startProfileJob(opts: {
   return publicJob(row);
 }
 
+/** 用户最近一次画像任务（供页面恢复进度：排队中/进行中/失败/成功）。 */
+export async function getLatestProfileJobForUser(userId: string): Promise<ProfileJob | null> {
+  const [row] = await db.select().from(profileJobs)
+    .where(eq(profileJobs.requestedBy, userId))
+    .orderBy(desc(profileJobs.createdAt)).limit(1);
+  return row ? publicJob(row) : null;
+}
+
 /** 真实登录用户的内容源标记：以 zhihu:<userId> 作为 profile_jobs.input_file 的哨兵值。
  *  OAuth 采集到的内容存在数据库里，不落 data/crawler 文件，因此不能用文件校验。 */
 export const ZHIHU_SOURCE_PREFIX = 'zhihu:';
@@ -88,7 +96,8 @@ export function isZhihuSourceJob(inputFile: string): boolean {
   return inputFile.startsWith(ZHIHU_SOURCE_PREFIX);
 }
 
-/** 用「已登录用户的知乎采集内容」启动画像任务（真实用户链路，无需 data/crawler 文件）。 */
+/** 用「已登录用户的知乎采集内容」启动画像任务（真实用户链路，无需 data/crawler 文件）。
+ *  幂等：该用户已有排队/进行中的任务时，直接返回那个任务，不重复排队烧 LLM。 */
 export async function startProfileJobForUser(opts: {
   userId: string;
   name: string;
@@ -96,6 +105,12 @@ export async function startProfileJobForUser(opts: {
   maxChars?: number;
   requestedBy?: string | null;
 }): Promise<ProfileJob> {
+  const sentinel = `${ZHIHU_SOURCE_PREFIX}${opts.userId}`;
+  const [inFlight] = await db.select().from(profileJobs)
+    .where(and(eq(profileJobs.inputFile, sentinel), inArray(profileJobs.status, ['queued', 'running'])))
+    .orderBy(desc(profileJobs.createdAt)).limit(1);
+  if (inFlight) return publicJob(inFlight);
+
   const contents = await getZhihuRawContents(opts.userId);
   if (!contents.length) {
     throw new Error('还没有采集到你的知乎内容，请先完成一次知乎登录授权。');

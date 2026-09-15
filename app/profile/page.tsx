@@ -5,6 +5,7 @@ import { getLatestProfileArtifactForUser } from '@/lib/profile/repository';
 import { hasUserVectors } from '@/lib/db';
 import { getRealSessionUserId, hasDemoSession } from '@/lib/experience-mode/session';
 import { resolveProfileEmptyState } from '@/lib/experience-mode/empty-state';
+import { getLatestProfileJobForUser } from '@/lib/profile/jobs';
 import ProfileExperience from './profile-experience';
 import ProfileGenerateButton from './profile-generate-button';
 
@@ -19,12 +20,13 @@ export default async function ProfilePage() {
 
   // 真实路径只按当前真实会话的 userId 读取产物。这里绝不能回退到本地文件或
   // 任意 slug，否则访客/另一个真实用户会看到不属于自己的画像。
-  const [artifact, hasUnderstanding] = uid
+  const [artifact, hasUnderstanding, latestJob] = uid
     ? await Promise.all([
       getLatestProfileArtifactForUser(uid).catch(() => null),
       hasUserVectors(uid).catch(() => false),
+      getLatestProfileJobForUser(uid).catch(() => null),
     ])
-    : [null, false];
+    : [null, false, null];
   const avatarSrc = artifact?.subject?.name
     ? resolveLocalAvatar(path.join(process.cwd(), 'public'), artifact.subject.name)
     : null;
@@ -55,7 +57,7 @@ export default async function ProfilePage() {
             <p className="mt-3 text-sm leading-6 text-[#77859a]">
               长期理解已用于相遇匹配。想要完整的证据画像（六维 + 时间线 + 证据链），点下面生成一次即可。
             </p>
-            <ProfileGenerateButton />
+            <ProfileGenerateButton initialJob={latestJob} />
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <a href="/onboarding" className="rounded-lg border border-[#c8b998] px-6 py-2.5 text-sm text-[#173e70]">查看长期理解</a>
               <Link href="/encounter" className="rounded-lg bg-[#173e70] px-6 py-2.5 text-sm text-white">去遇见</Link>

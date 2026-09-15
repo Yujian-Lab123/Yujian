@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import EncounterHub, { type EncounterCard } from '@/app/encounter/EncounterHub';
 import { useDemoMe } from '@/lib/experience-mode/useDemoMe';
@@ -31,16 +32,21 @@ export default function DemoEncounterPage() {
   useEffect(() => { void load(); }, [load]);
 
   return (
-    <EncounterHub
-      mode="demo"
-      cards={cards}
-      loading={!loaded || me.loading}
-      error={loadError || me.error || ''}
-      profileReady={Boolean(me.understanding)}
-      currentState={me.currentState}
-      started={true}
-      onStart={() => void load()}
-      onRetry={() => void load()}
-    />
+    <>
+      <EncounterHub
+        mode="demo"
+        cards={cards}
+        loading={!loaded || me.loading}
+        error={loadError || me.error || ''}
+        profileReady={Boolean(me.understanding)}
+        currentState={me.currentState}
+        started={true}
+        onStart={() => void load()}
+        onRetry={() => void load()}
+      />
+      <div className="bg-[#fbf8f1] px-5 pb-12 text-center">
+        <Link href="/demo/content" className="text-xs text-[#1769d7] underline underline-offset-4">浏览已授权的真实答主内容样本</Link>
+      </div>
+    </>
   );
 }

@@ -17,6 +17,14 @@ export default function Onboarding() {
     (async () => {
       const meRes = await fetch('/api/me').then((r) => r.json());
       if (!meRes.ok) return router.push('/');
+      // 已有向量说明长期理解已经完成。直接展示结果，不能每次查看都再播放一次“读取”动画。
+      if (meRes.understanding) {
+        if (alive) {
+          setUnderstanding(meRes.understanding);
+          setPhase('result');
+        }
+        return;
+      }
       // 依次播放“正在读你允许我们看到的内容”
       for (let i = 1; i <= STEPS.length; i++) {
         await new Promise((r) => setTimeout(r, 550));

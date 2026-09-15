@@ -43,7 +43,7 @@ export default function ProfileCorner({
     setName(f.replace(/\.json$/, ''));
   }
 
-  async function generate() {
+  async function generate(source?: 'zhihu') {
     setError('');
     setBusy(true);
     setJob(null);
@@ -51,7 +51,7 @@ export default function ProfileCorner({
       const res = await fetch('/api/profile/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file, name }),
+        body: JSON.stringify(source === 'zhihu' ? { source: 'zhihu' } : { file, name }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || '启动失败');
@@ -124,6 +124,18 @@ export default function ProfileCorner({
 
           {tab === 'generate' && (
             <div className="space-y-2 text-sm">
+              <button
+                type="button"
+                onClick={() => generate('zhihu')}
+                disabled={busy}
+                className="w-full rounded-md bg-[#173e70] px-3 py-2 text-xs text-white disabled:opacity-50"
+              >
+                {busy ? '生成中…' : '用我的知乎内容生成画像'}
+              </button>
+              <p className="text-[10px] leading-4 text-[#8a857c]">
+                基于你授权采集的知乎内容生成完整证据画像（约 1–3 分钟，可离开页面）
+              </p>
+              <p className="pt-1 text-[10px] text-[#a09a8e]">或使用预置数据集（开发调试）：</p>
               <select
                 value={file}
                 onChange={(e) => pick(e.target.value)}
@@ -145,7 +157,7 @@ export default function ProfileCorner({
               />
               <button
                 type="button"
-                onClick={generate}
+                onClick={() => generate()}
                 disabled={busy || !file}
                 className="w-full rounded-md bg-[#2c5f8a] px-3 py-1.5 text-xs text-white disabled:opacity-50"
               >

@@ -25,16 +25,16 @@ export default async function GalleryPage() {
       <Nav tone="warm" tagline="自愿公开 · 看见彼此愿意被理解的一面" />
       <section
         className="relative bg-[#e9e2d3] bg-cover bg-center"
-        style={{ backgroundImage: "url('/images/gallery/hero/gallery-river-mountains-v1.png')" }}
+        style={{ backgroundImage: "url('/images/gallery/hero/gallery-river-mountains-v1.webp')" }}
       >
         <img
-          src="/images/gallery/decor/branch-left-v1.png"
+          src="/images/gallery/decor/branch-left-v1.webp"
           alt=""
           aria-hidden
           className="pointer-events-none absolute left-0 top-0 hidden h-full w-auto select-none lg:block"
         />
         <img
-          src="/images/gallery/decor/branch-right-v1.png"
+          src="/images/gallery/decor/branch-right-v1.webp"
           alt=""
           aria-hidden
           className="pointer-events-none absolute right-0 top-0 hidden h-full w-auto select-none lg:block"

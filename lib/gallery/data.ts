@@ -24,9 +24,9 @@ export interface GalleryEntry {
   isMock: boolean;
 }
 
-/** 封面路径约定：/images/gallery/mock-covers/<slug>-v1.png（图内无文字，文案由代码渲染）。 */
+/** 封面路径约定：/images/gallery/mock-covers/<slug>-v1.webp（图内无文字，文案由代码渲染）。 */
 function coverOf(slug: string): string {
-  return `/images/gallery/mock-covers/${slug}-v1.png`;
+  return `/images/gallery/mock-covers/${slug}-v1.webp`;
 }
 
 /** 预览人设（虚构，比赛演示数据；与相遇池的种子用户无冲突）。 */

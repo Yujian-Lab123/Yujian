@@ -19,10 +19,8 @@ describe('experience-mode navigation isolation', () => {
     }
   });
 
-  it('every demo nav link keeps the /demo prefix (except shared public pages)', () => {
+  it('every demo nav link keeps the /demo prefix', () => {
     for (const [, href] of DEMO_NAV) {
-      if (href === '/about') continue; // 关于页是双模式共享入口
-      if (href === '/gallery') continue; // 画像长廊是公开只读页，双模式共享
       expect(href.startsWith('/demo')).toBe(true);
     }
   });
@@ -34,6 +32,8 @@ describe('experience-mode navigation isolation', () => {
     expect(demoHrefs).not.toContain('/me');
     expect(demoHrefs).not.toContain('/side');
     expect(demoHrefs).not.toContain('/encounter');
+    expect(demoHrefs).not.toContain('/gallery');
+    expect(demoHrefs).not.toContain('/about');
     expect(realHrefs).not.toContain('/demo/profile');
     expect(realHrefs).not.toContain('/demo/encounter');
   });

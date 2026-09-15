@@ -20,6 +20,12 @@ export default function DemoOnboardingPage() {
     if (!me.loggedIn) { router.replace('/demo'); return; }
     let alive = true;
     (async () => {
+      // 演示身份已完成理解时直接复用结果，避免用户每次点回本页都触发动画与重复写入。
+      if (me.understanding) {
+        setUnderstanding(me.understanding);
+        setPhase('result');
+        return;
+      }
       for (let i = 1; i <= STEPS.length; i++) {
         await new Promise((r) => setTimeout(r, 550));
         if (!alive) return;
@@ -34,7 +40,7 @@ export default function DemoOnboardingPage() {
       }
     })();
     return () => { alive = false; };
-  }, [me.loading, me.loggedIn, router]);
+  }, [me.loading, me.loggedIn, me.understanding, router]);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-paper-100 paper-texture">

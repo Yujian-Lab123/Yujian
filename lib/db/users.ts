@@ -116,6 +116,16 @@ export async function saveZhihuAuth(
   });
 }
 
+/**
+ * OAuth 采集到的知乎内容原文（external_identities.raw_contents）。
+ * 真实登录用户的画像生成走这里，不依赖 data/crawler 文件。
+ */
+export async function getZhihuRawContents(userId: string): Promise<unknown[]> {
+  const [row] = await db.select({ rawContents: externalIdentities.rawContents }).from(externalIdentities)
+    .where(and(eq(externalIdentities.provider, 'zhihu'), eq(externalIdentities.userId, userId))).limit(1);
+  return Array.isArray(row?.rawContents) ? row.rawContents : [];
+}
+
 /** 身份附加信息（头像/主页/一句话），来自 external_identities.profile，
  *  供 /api/me 等接口在用户对象上附带展示字段（users 表本身不存头像列）。 */
 export async function getIdentityExtras(userId: string): Promise<{ avatarUrl: string | null; profileUrl: string | null; headline: string | null } | null> {
